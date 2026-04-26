@@ -1,0 +1,180 @@
+{
+  "exam": "GATE",
+  "subject": "DBMS",
+  "year": "2021",
+  "duration": 30,
+  "total_marks": 15,
+  "instructions": "Each correct MCQ carries the marks listed. Negative marking applies as listed per question.",
+  "questions": [
+    {
+      "id": 1,
+      "type": "mcq",
+      "question": "Which normal form eliminates partial dependencies from a relation?",
+      "options": {
+        "A": "First Normal Form (1NF)",
+        "B": "Second Normal Form (2NF)",
+        "C": "Third Normal Form (3NF)",
+        "D": "Boyce-Codd Normal Form (BCNF)"
+      },
+      "correct": "B",
+      "explanation": "2NF removes partial dependencies — every non-key attribute must depend on the whole primary key, not just part of it. This applies only to relations with composite primary keys.",
+      "difficulty": "easy",
+      "topic": "Normalization",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 2,
+      "type": "mcq",
+      "question": "Which SQL JOIN returns all rows from both tables, placing NULLs where there is no match on either side?",
+      "options": {
+        "A": "INNER JOIN",
+        "B": "LEFT OUTER JOIN",
+        "C": "RIGHT OUTER JOIN",
+        "D": "FULL OUTER JOIN"
+      },
+      "correct": "D",
+      "explanation": "FULL OUTER JOIN returns all rows from both tables. For rows with no match, the columns from the missing side are filled with NULL. It is the union of LEFT and RIGHT outer joins.",
+      "difficulty": "easy",
+      "topic": "SQL",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 3,
+      "type": "mcq",
+      "question": "In an ER diagram using Chen notation, which shape represents a relationship set?",
+      "options": {
+        "A": "Rectangle",
+        "B": "Ellipse",
+        "C": "Diamond",
+        "D": "Double rectangle"
+      },
+      "correct": "C",
+      "explanation": "In Chen ER notation: rectangles represent entity sets, ellipses represent attributes, diamonds represent relationship sets, and double rectangles represent weak entity sets.",
+      "difficulty": "easy",
+      "topic": "ER Diagram",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 4,
+      "type": "mcq",
+      "question": "Which of the following is NOT one of the ACID properties of a database transaction?",
+      "options": {
+        "A": "Atomicity",
+        "B": "Consistency",
+        "C": "Distribution",
+        "D": "Durability"
+      },
+      "correct": "C",
+      "explanation": "ACID stands for Atomicity, Consistency, Isolation, Durability. Distribution is not an ACID property — it relates to distributed systems architecture, not transaction semantics.",
+      "difficulty": "easy",
+      "topic": "Transactions",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 5,
+      "type": "mcq",
+      "question": "A relation R(A, B, C, D) has functional dependencies A→B, B→C, and A→D. What is the candidate key of R?",
+      "options": {
+        "A": "A",
+        "B": "B",
+        "C": "AB",
+        "D": "AD"
+      },
+      "correct": "A",
+      "explanation": "A determines B (A→B), B determines C so A→C transitively, and A→D directly. Thus A determines {A, B, C, D} — all attributes. Since no proper subset of {A} can do the same, A is the sole candidate key.",
+      "difficulty": "medium",
+      "topic": "Functional Dependencies",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 6,
+      "type": "mcq",
+      "question": "Which index structure is MOST efficient for range queries on a sorted attribute?",
+      "options": {
+        "A": "Hash Index",
+        "B": "B+ Tree Index",
+        "C": "Bitmap Index",
+        "D": "Inverted Index"
+      },
+      "correct": "B",
+      "explanation": "B+ Trees store sorted data with all values in leaf nodes linked together in a doubly-linked list, enabling efficient range queries with O(log n) search followed by sequential leaf traversal. Hash indexes only support equality queries.",
+      "difficulty": "medium",
+      "topic": "Indexing",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 7,
+      "type": "mcq",
+      "question": "In relational algebra, which operation selects specific tuples (rows) from a relation based on a predicate condition?",
+      "options": {
+        "A": "Projection (π)",
+        "B": "Selection (σ)",
+        "C": "Natural Join (⋈)",
+        "D": "Rename (ρ)"
+      },
+      "correct": "B",
+      "explanation": "Selection (σ) filters tuples based on a condition — it is a horizontal operation. Projection (π) selects specific columns (vertical). Natural Join combines two relations on common attributes. Rename changes the relation/attribute name.",
+      "difficulty": "easy",
+      "topic": "Relational Algebra",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 8,
+      "type": "mcq",
+      "question": "Two-Phase Locking (2PL) protocol guarantees which of the following?",
+      "options": {
+        "A": "Deadlock prevention",
+        "B": "Conflict serializability",
+        "C": "Deadlock detection",
+        "D": "Starvation freedom"
+      },
+      "correct": "B",
+      "explanation": "2PL guarantees conflict serializability by ensuring every schedule under 2PL is conflict-serializable. It does NOT prevent deadlocks — that requires additional protocols like wait-die or wound-wait.",
+      "difficulty": "hard",
+      "topic": "Concurrency Control",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 9,
+      "type": "mcq",
+      "question": "A B+ tree of order m can hold at most how many keys per internal node?",
+      "options": {
+        "A": "m",
+        "B": "m + 1",
+        "C": "m - 1",
+        "D": "m / 2"
+      },
+      "correct": "C",
+      "explanation": "A B+ tree of order m means each node can have at most m children (pointers). Since a node with m children needs m-1 keys to separate them, the maximum number of keys per internal node is m-1.",
+      "difficulty": "hard",
+      "topic": "B+ Trees",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 10,
+      "type": "mcq",
+      "question": "Which type of integrity constraint ensures that a value in one table's column corresponds to a valid value in another table?",
+      "options": {
+        "A": "Domain constraint",
+        "B": "Entity integrity constraint",
+        "C": "Referential integrity constraint",
+        "D": "Key constraint"
+      },
+      "correct": "C",
+      "explanation": "Referential integrity constraints (enforced via foreign keys) ensure that a value in one table's foreign key column must exist as a primary key in the referenced table, preventing orphan records.",
+      "difficulty": "medium",
+      "topic": "Integrity Constraints",
+      "marks": 1,
+      "negative_marking": 0.33
+    }
+  ]
+}

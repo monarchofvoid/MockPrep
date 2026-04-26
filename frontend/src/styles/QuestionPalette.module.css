@@ -1,0 +1,20 @@
+.sidebar { width: 210px; background: #0f1e3d; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; padding: 16px 14px; }
+.header { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; }
+.counts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.countBadge { font-size: 11px; padding: 4px 10px; border-radius: 5px; font-weight: 600; }
+.answered { background: rgba(5,150,105,.2); color: #6ee7b7; }
+.marked { background: rgba(217,119,6,.2); color: #fcd34d; }
+.notAttempted { background: rgba(107,114,128,.15); color: rgba(255,255,255,.5); }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+.cell { width: 100%; aspect-ratio: 1; border-radius: 5px; font-size: 12px; font-weight: 600; border: none; color: #fff; display: flex; align-items: center; justify-content: center; transition: transform .1s; }
+.cell:hover { transform: scale(1.1); }
+.cell.active { outline: 2.5px solid #fff; outline-offset: 1px; }
+.unvisited { background: #2d3748; }
+.visited { background: #dc2626; }
+.answered { background: #059669; }
+.marked { background: #d97706; }
+.answered_marked { background: #7c3aed; }
+.legend { margin-top: auto; display: flex; flex-direction: column; gap: 7px; }
+.legRow { display: flex; align-items: center; gap: 8px; }
+.legDot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.legLabel { font-size: 11px; color: rgba(255,255,255,.55); }

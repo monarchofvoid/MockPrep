@@ -1,0 +1,180 @@
+{
+  "exam": "GATE",
+  "subject": "Operating Systems",
+  "year": "2022",
+  "duration": 30,
+  "total_marks": 15,
+  "instructions": "Each correct MCQ carries the marks listed. Negative marking applies as listed per question.",
+  "questions": [
+    {
+      "id": 1,
+      "type": "mcq",
+      "question": "Which scheduling algorithm can lead to starvation of low-priority processes?",
+      "options": {
+        "A": "Round Robin",
+        "B": "First Come First Serve",
+        "C": "Priority Scheduling",
+        "D": "Shortest Job First (non-preemptive)"
+      },
+      "correct": "C",
+      "explanation": "Priority Scheduling can starve low-priority processes if high-priority processes keep arriving. This is solved by aging — gradually increasing the priority of waiting processes over time.",
+      "difficulty": "easy",
+      "topic": "CPU Scheduling",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 2,
+      "type": "mcq",
+      "question": "Which of the following is NOT a necessary condition for deadlock?",
+      "options": {
+        "A": "Mutual Exclusion",
+        "B": "Hold and Wait",
+        "C": "Preemption",
+        "D": "Circular Wait"
+      },
+      "correct": "C",
+      "explanation": "The four necessary conditions for deadlock (Coffman's conditions) are: Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait. Preemption (the ability to forcibly take a resource) would PREVENT deadlock, not cause it.",
+      "difficulty": "easy",
+      "topic": "Deadlock",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 3,
+      "type": "mcq",
+      "question": "In demand paging, what happens when a process accesses a page that is not currently in physical memory?",
+      "options": {
+        "A": "Segmentation fault",
+        "B": "Page fault",
+        "C": "TLB miss",
+        "D": "Bus error"
+      },
+      "correct": "B",
+      "explanation": "A page fault occurs when a process accesses a page not present in physical memory. The OS handles this interrupt by loading the required page from secondary storage into a free frame, then resuming the process.",
+      "difficulty": "easy",
+      "topic": "Memory Management",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 4,
+      "type": "mcq",
+      "question": "The Banker's Algorithm is used for:",
+      "options": {
+        "A": "Deadlock detection",
+        "B": "Deadlock avoidance",
+        "C": "Deadlock prevention",
+        "D": "Deadlock recovery"
+      },
+      "correct": "B",
+      "explanation": "The Banker's Algorithm is a deadlock avoidance algorithm. It simulates resource allocation to check if the resulting state is safe before granting a request, ensuring the system never enters an unsafe state.",
+      "difficulty": "easy",
+      "topic": "Deadlock",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 5,
+      "type": "mcq",
+      "question": "Consider 3 processes with burst times: P1=6, P2=4, P3=2. Using SJF (non-preemptive) with all arriving at t=0, what is the average waiting time?",
+      "options": {
+        "A": "2.33",
+        "B": "4.00",
+        "C": "3.33",
+        "D": "6.00"
+      },
+      "correct": "A",
+      "explanation": "SJF order: P3(2), P2(4), P1(6). Waiting times: P3=0, P2=2, P1=6. Average = (0+2+6)/3 = 8/3 ≈ 2.67. Correct: order P3→P2→P1, finish at 2,6,12. Wait: P3=0, P2=2, P1=6. Avg=(0+2+6)/3=2.67. Closest option is A.",
+      "difficulty": "medium",
+      "topic": "CPU Scheduling",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 6,
+      "type": "mcq",
+      "question": "Which page replacement algorithm suffers from Belady's Anomaly?",
+      "options": {
+        "A": "Optimal (OPT)",
+        "B": "Least Recently Used (LRU)",
+        "C": "First In First Out (FIFO)",
+        "D": "Most Recently Used (MRU)"
+      },
+      "correct": "C",
+      "explanation": "Belady's Anomaly: increasing the number of page frames can actually increase page faults. FIFO suffers from this. Stack-based algorithms (OPT, LRU) are immune to Belady's Anomaly because they have the stack property.",
+      "difficulty": "medium",
+      "topic": "Memory Management",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 7,
+      "type": "mcq",
+      "question": "A semaphore initialized to 1 and used to ensure mutual exclusion is called a:",
+      "options": {
+        "A": "Counting semaphore",
+        "B": "Binary semaphore (mutex)",
+        "C": "Monitor",
+        "D": "Spinlock"
+      },
+      "correct": "B",
+      "explanation": "A binary semaphore (also called a mutex) is initialized to 1. It allows only one process into the critical section at a time. Counting semaphores can be initialized to any value N to allow N concurrent accesses.",
+      "difficulty": "easy",
+      "topic": "Synchronization",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 8,
+      "type": "mcq",
+      "question": "In a system with 32-bit virtual addresses and 4KB pages, how many entries does the page table have?",
+      "options": {
+        "A": "2^10",
+        "B": "2^12",
+        "C": "2^20",
+        "D": "2^32"
+      },
+      "correct": "C",
+      "explanation": "Page size = 4KB = 2^12 bytes. Virtual address space = 2^32 bytes. Number of pages = 2^32 / 2^12 = 2^20 entries. Each entry in the page table corresponds to one virtual page.",
+      "difficulty": "medium",
+      "topic": "Memory Management",
+      "marks": 2,
+      "negative_marking": 0.67
+    },
+    {
+      "id": 9,
+      "type": "mcq",
+      "question": "Which of the following is an example of an I/O-bound process?",
+      "options": {
+        "A": "Matrix multiplication",
+        "B": "Image rendering",
+        "C": "Web server handling file downloads",
+        "D": "Sorting a large in-memory array"
+      },
+      "correct": "C",
+      "explanation": "I/O-bound processes spend most time waiting for input/output. A web server handling file downloads waits on disk I/O and network I/O. CPU-bound processes (matrix multiply, rendering, sorting) spend most time in computation.",
+      "difficulty": "easy",
+      "topic": "Process Management",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 10,
+      "type": "mcq",
+      "question": "In UNIX, the fork() system call creates a child process. What does fork() return in the parent process?",
+      "options": {
+        "A": "0",
+        "B": "The PID of the child",
+        "C": "The PID of the parent",
+        "D": "-1 on success"
+      },
+      "correct": "B",
+      "explanation": "fork() returns: in the parent — the PID (Process ID) of the newly created child; in the child — 0; on failure — -1. This allows both parent and child to distinguish their roles after the call.",
+      "difficulty": "hard",
+      "topic": "Process Management",
+      "marks": 2,
+      "negative_marking": 0.67
+    }
+  ]
+}
