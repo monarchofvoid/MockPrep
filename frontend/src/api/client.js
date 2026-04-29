@@ -1,26 +1,81 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-async function request(method, path, body = null) {
-  const opts = {
-    method,
-    headers: { "Content-Type": "application/json" },
-  };
+// ── Token management ──────────────────────────────────────────────────────────
+
+export const getToken = () => localStorage.getItem("vyas_token");
+export const setToken = (token) => localStorage.setItem("vyas_token", token);
+export const clearToken = () => localStorage.removeItem("vyas_token");
+
+export const getStoredUser = () => {
+  try {
+    const raw = localStorage.getItem("vyas_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+export const setStoredUser = (user) =>
+  localStorage.setItem("vyas_user", JSON.stringify(user));
+export const clearStoredUser = () => localStorage.removeItem("vyas_user");
+
+export const saveAuth = ({ access_token, user }) => {
+  setToken(access_token);
+  setStoredUser(user);
+};
+
+export const clearAuth = () => {
+  clearToken();
+  clearStoredUser();
+};
+
+// ── Core request helper ───────────────────────────────────────────────────────
+
+async function request(method, path, body = null, requiresAuth = true) {
+  const headers = { "Content-Type": "application/json" };
+
+  if (requiresAuth) {
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
   const res = await fetch(`${BASE}${path}`, opts);
+
+  // Auto-logout on 401
+  if (res.status === 401 && requiresAuth) {
+    clearAuth();
+    window.location.href = "/";
+    throw new Error("Session expired. Please log in again.");
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Request failed");
   }
+
   return res.json();
 }
 
-// Papers
+// ── Auth endpoints ────────────────────────────────────────────────────────────
+
+export const signup = (name, email, password) =>
+  request("POST", "/auth/signup", { name, email, password }, false);
+
+export const login = (email, password) =>
+  request("POST", "/auth/login", { email, password }, false);
+
+export const getMe = () => request("GET", "/auth/me");
+
+// ── Papers ────────────────────────────────────────────────────────────────────
+
 export const getMocks = () => request("GET", "/mocks");
 
-// Test session
-export const startAttempt = (userId, mockId) =>
-  request("POST", "/start-attempt", { user_id: userId, mock_id: mockId });
+// ── Test session ──────────────────────────────────────────────────────────────
+
+export const startAttempt = (mockId) =>
+  request("POST", "/start-attempt", { mock_id: mockId });
 
 export const submitAttempt = (attemptId, timeTakenSeconds, questionStates) =>
   request("POST", "/submit-attempt", {
@@ -29,17 +84,10 @@ export const submitAttempt = (attemptId, timeTakenSeconds, questionStates) =>
     question_states: questionStates,
   });
 
-// Results
-export const getResults = (attemptId) =>
-  request("GET", `/results/${attemptId}`);
+// ── Results & analytics ───────────────────────────────────────────────────────
 
-// Analytics
-export const getUserAnalytics = (userId) =>
-  request("GET", `/analytics/${userId}`);
+export const getResults = (attemptId) => request("GET", `/results/${attemptId}`);
 
-export const getUserAttempts = (userId) =>
-  request("GET", `/users/${userId}/attempts`);
+export const getMyAnalytics = () => request("GET", "/analytics/me");
 
-// Users
-export const createUser = (name, email) =>
-  request("POST", "/users", { name, email });
+export const getMyAttempts = () => request("GET", "/users/me/attempts");

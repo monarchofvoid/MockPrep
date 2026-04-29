@@ -1,6 +1,6 @@
 """
-MockPrep — FastAPI Backend
-All 5 modules wired together:
+VYAS — Virtual Yield Assessment System
+FastAPI Backend — All 5 modules wired together:
   A. Question Bank loader
   B. Mock Test Engine (session start)
   C. Response Tracking (data in)
@@ -17,28 +17,35 @@ from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import models
 import schemas
 from database import engine, get_db
 from services.evaluation import evaluate
 from services.analytics import get_user_analytics
+from auth import get_current_user, hash_password, verify_password, create_access_token
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="MockPrep API",
-    description="Mock test platform — question banks, test sessions, evaluation, analytics",
-    version="1.0.0",
+    title="VYAS API",
+    description="Virtual Yield Assessment System — question banks, test sessions, evaluation, analytics",
+    version="2.0.0",
 )
+
+# Parse allowed origins from env (comma-separated) or use defaults
+_raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000",
+)
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://mock-prep-three.vercel.app",   # ← add your real Vercel URL
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,7 +61,10 @@ QB_ROOT = Path(os.getenv("QB_ROOT", "../question_bank"))
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def load_question_json(file_path: str) -> dict:
-    """Load and parse a question bank JSON file."""
+    """
+    Load and parse a question bank JSON file.
+    Handles both flat format and nested 'meta' format.
+    """
     path = QB_ROOT / file_path
     if not path.exists():
         raise HTTPException(
@@ -62,39 +72,60 @@ def load_question_json(file_path: str) -> dict:
             detail=f"Question bank file not found: {file_path}",
         )
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        raw = json.load(f)
+    # Normalise: if top-level keys include 'meta', hoist its fields
+    if "meta" in raw and isinstance(raw["meta"], dict):
+        merged = {**raw["meta"], **raw}
+        merged.pop("meta", None)
+        return merged
+    return raw
+
+
+def _make_mock_id(relative_path: Path) -> str:
+    parts = list(relative_path.with_suffix("").parts)
+    return "_".join(parts)
 
 
 def seed_mock_tests(db: Session):
     """
-    Auto-seed MockTest metadata from JSON files in question_bank/.
-    In production, replace this with a proper admin panel or migration.
+    Auto-discover every JSON file in question_bank/ and upsert into mock_tests.
+    Mirrors the standalone seed.py logic so both routes work identically.
     """
-    registry = [
-        {
-            "id": "dbms_pyq_2021",
-            "exam": "GATE",
-            "subject": "Database Management Systems",
-            "year": "PYQ 2021",
-            "duration_minutes": 30,
-            "total_marks": 15.0,
-            "question_count": 10,
-            "json_file_path": "dbms/pyq_2021.json",
-        },
-        {
-            "id": "os_pyq_2022",
-            "exam": "GATE",
-            "subject": "Operating Systems",
-            "year": "PYQ 2022",
-            "duration_minutes": 30,
-            "total_marks": 15.0,
-            "question_count": 10,
-            "json_file_path": "os/pyq_2022.json",
-        },
-    ]
-    for entry in registry:
-        if not db.query(models.MockTest).filter_by(id=entry["id"]).first():
+    if not QB_ROOT.exists():
+        return
+
+    for json_path in sorted(QB_ROOT.rglob("*.json")):
+        try:
+            with open(json_path, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+
+        relative    = json_path.relative_to(QB_ROOT)
+        mock_id     = _make_mock_id(relative)
+        duration    = data.get("duration_minutes") or data.get("duration") or 30
+        total_marks = data.get("total_marks") or sum(
+            q.get("marks", 1) for q in data.get("questions", [])
+        )
+
+        entry = {
+            "id":               mock_id,
+            "exam":             data.get("exam", "UNKNOWN"),
+            "subject":          data.get("subject", relative.parts[0].upper()),
+            "year":             str(data.get("year", "")),
+            "duration_minutes": int(duration),
+            "total_marks":      float(total_marks),
+            "question_count":   len(data.get("questions", [])),
+            "json_file_path":   str(relative),
+        }
+
+        existing = db.query(models.MockTest).filter_by(id=mock_id).first()
+        if not existing:
             db.add(models.MockTest(**entry))
+        else:
+            for k, v in entry.items():
+                setattr(existing, k, v)
+
     db.commit()
 
 
@@ -108,19 +139,66 @@ def startup_event():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0", "app": "VYAS"}
+
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@app.post("/auth/signup", response_model=schemas.TokenResponse, status_code=201, tags=["Auth"])
+def signup(body: schemas.SignupRequest, db: Session = Depends(get_db)):
+    """Register a new user and return a JWT token immediately."""
+    if db.query(models.User).filter_by(email=body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user = models.User(
+        name=body.name,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token({"sub": str(user.id)})
+    return schemas.TokenResponse(access_token=token, user=user)
+
+
+@app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Auth"])
+def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
+    """Authenticate with email + password. Returns JWT token."""
+    user = db.query(models.User).filter_by(email=body.email).first()
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+    token = create_access_token({"sub": str(user.id)})
+    return schemas.TokenResponse(access_token=token, user=user)
+
+
+@app.get("/auth/me", response_model=schemas.UserOut, tags=["Auth"])
+def get_me(current_user: models.User = Depends(get_current_user)):
+    """Return the currently authenticated user's profile."""
+    return current_user
 
 
 # ─── Module A — Question Bank / Paper Catalogue ───────────────────────────────
 
 @app.get("/mocks", response_model=List[schemas.MockTestOut], tags=["Papers"])
-def list_mocks(db: Session = Depends(get_db)):
-    """Return all available papers/mock tests."""
+def list_mocks(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return all available papers/mock tests. Requires authentication."""
     return db.query(models.MockTest).all()
 
 
 @app.get("/mocks/{mock_id}", response_model=schemas.MockTestOut, tags=["Papers"])
-def get_mock(mock_id: str, db: Session = Depends(get_db)):
+def get_mock(
+    mock_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """Return metadata for a single mock test."""
     mock = db.query(models.MockTest).filter_by(id=mock_id).first()
     if not mock:
@@ -131,27 +209,24 @@ def get_mock(mock_id: str, db: Session = Depends(get_db)):
 # ─── Module B — Mock Test Engine: start a session ─────────────────────────────
 
 @app.post("/start-attempt", response_model=schemas.StartAttemptResponse, tags=["Test Engine"])
-def start_attempt(body: schemas.StartAttemptRequest, db: Session = Depends(get_db)):
+def start_attempt(
+    body: schemas.StartAttemptRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
     User selects a paper → create an Attempt row → return questions (without answers).
+    user_id is always taken from the verified JWT — never from request body.
     """
-    # Validate user
-    user = db.query(models.User).filter_by(id=body.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Validate mock test
     mock = db.query(models.MockTest).filter_by(id=body.mock_id).first()
     if not mock:
         raise HTTPException(status_code=404, detail="Mock test not found")
 
-    # Create attempt record
-    attempt = models.Attempt(user_id=body.user_id, mock_id=body.mock_id)
+    attempt = models.Attempt(user_id=current_user.id, mock_id=body.mock_id)
     db.add(attempt)
     db.commit()
     db.refresh(attempt)
 
-    # Load question bank (strip correct answers before sending)
     mock_data = load_question_json(mock.json_file_path)
     questions_out = [
         schemas.QuestionOut(
@@ -179,13 +254,20 @@ def start_attempt(body: schemas.StartAttemptRequest, db: Session = Depends(get_d
 # ─── Module C + D — Submit, track, evaluate ──────────────────────────────────
 
 @app.post("/submit-attempt", response_model=schemas.ResultsResponse, tags=["Test Engine"])
-def submit_attempt(body: schemas.SubmitAttemptRequest, db: Session = Depends(get_db)):
+def submit_attempt(
+    body: schemas.SubmitAttemptRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
     Receive full question states from frontend → evaluate → persist → return results.
+    Validates that the attempt belongs to the requesting user.
     """
     attempt = db.query(models.Attempt).filter_by(id=body.attempt_id).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Attempt not found")
+    if attempt.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your attempt")
     if attempt.submitted_at:
         raise HTTPException(status_code=400, detail="Attempt already submitted")
 
@@ -201,16 +283,16 @@ def submit_attempt(body: schemas.SubmitAttemptRequest, db: Session = Depends(get
     )
 
     # ── Persist attempt summary ───────────────────────────────────────────────
-    attempt.score = result["_db_score"]
-    attempt.total_marks = result["_db_total_marks"]
-    attempt.correct_count = result["_db_correct"]
-    attempt.wrong_count = result["_db_wrong"]
-    attempt.skipped_count = result["_db_skipped"]
-    attempt.accuracy = result["_db_accuracy"]
-    attempt.attempt_rate = result["_db_attempt_rate"]
-    attempt.time_taken_seconds = result["_db_time"]
+    attempt.score                 = result["_db_score"]
+    attempt.total_marks           = result["_db_total_marks"]
+    attempt.correct_count         = result["_db_correct"]
+    attempt.wrong_count           = result["_db_wrong"]
+    attempt.skipped_count         = result["_db_skipped"]
+    attempt.accuracy              = result["_db_accuracy"]
+    attempt.attempt_rate          = result["_db_attempt_rate"]
+    attempt.time_taken_seconds    = result["_db_time"]
     attempt.avg_time_per_question = result["_db_avg_time"]
-    attempt.submitted_at = datetime.now(timezone.utc)
+    attempt.submitted_at          = datetime.now(timezone.utc)
 
     # ── Persist per-question responses (Module C) ─────────────────────────────
     state_map = {qs.question_id: qs for qs in body.question_states}
@@ -234,7 +316,6 @@ def submit_attempt(body: schemas.SubmitAttemptRequest, db: Session = Depends(get
     db.commit()
     db.refresh(attempt)
 
-    # ── Build and return full ResultsResponse ─────────────────────────────────
     return schemas.ResultsResponse(
         attempt_id=attempt.id,
         mock_id=mock.id,
@@ -278,11 +359,17 @@ def submit_attempt(body: schemas.SubmitAttemptRequest, db: Session = Depends(get
 # ─── Module E — Results & Analytics ──────────────────────────────────────────
 
 @app.get("/results/{attempt_id}", response_model=schemas.ResultsResponse, tags=["Analytics"])
-def get_results(attempt_id: int, db: Session = Depends(get_db)):
-    """Retrieve persisted results for a completed attempt."""
+def get_results(
+    attempt_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Retrieve persisted results for a completed attempt. Must own the attempt."""
     attempt = db.query(models.Attempt).filter_by(id=attempt_id).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Attempt not found")
+    if attempt.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your attempt")
     if not attempt.submitted_at:
         raise HTTPException(status_code=400, detail="Attempt not yet submitted")
 
@@ -351,42 +438,26 @@ def get_results(attempt_id: int, db: Session = Depends(get_db)):
     )
 
 
-@app.get("/analytics/{user_id}", response_model=schemas.UserAnalytics, tags=["Analytics"])
-def user_analytics(user_id: int, db: Session = Depends(get_db)):
-    """Return aggregated performance data across all of a user's attempts."""
-    user = db.query(models.User).filter_by(id=user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return get_user_analytics(db, user_id)
+# ─── Phase 5 — Convenience "me" routes ───────────────────────────────────────
+
+@app.get("/analytics/me", response_model=schemas.UserAnalytics, tags=["Analytics"])
+def my_analytics(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return aggregated performance data for the authenticated user."""
+    return get_user_analytics(db, current_user.id)
 
 
-# ─── User management (minimal) ────────────────────────────────────────────────
-
-@app.post("/users", response_model=schemas.UserOut, status_code=201, tags=["Users"])
-def create_user(body: schemas.UserCreate, db: Session = Depends(get_db)):
-    if db.query(models.User).filter_by(email=body.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    user = models.User(name=body.name, email=body.email)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@app.get("/users/{user_id}", response_model=schemas.UserOut, tags=["Users"])
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(id=user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-@app.get("/users/{user_id}/attempts", tags=["Users"])
-def user_attempts(user_id: int, db: Session = Depends(get_db)):
-    """List all attempts by a user with summary stats."""
+@app.get("/users/me/attempts", tags=["Users"])
+def my_attempts(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all attempts for the authenticated user with summary stats."""
     attempts = (
         db.query(models.Attempt)
-        .filter_by(user_id=user_id)
+        .filter_by(user_id=current_user.id)
         .order_by(models.Attempt.started_at.desc())
         .all()
     )
@@ -406,3 +477,23 @@ def user_attempts(user_id: int, db: Session = Depends(get_db)):
             "started_at": a.started_at,
         })
     return result
+
+
+# ─── Legacy user endpoints (kept for backwards compatibility) ─────────────────
+
+@app.get("/analytics/{user_id}", response_model=schemas.UserAnalytics, tags=["Analytics"])
+def user_analytics(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return aggregated performance data for a user. Must be own data."""
+    if user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return get_user_analytics(db, user_id)
+
+
+@app.get("/users/me", response_model=schemas.UserOut, tags=["Users"])
+def get_current_user_profile(current_user: models.User = Depends(get_current_user)):
+    """Return the authenticated user's profile."""
+    return current_user

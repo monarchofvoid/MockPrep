@@ -6,12 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy API calls to FastAPI during dev (optional — can use VITE_API_URL instead)
-      "/api": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
-      },
+      // Proxy /api calls to backend in local dev (optional convenience)
     },
   },
 });

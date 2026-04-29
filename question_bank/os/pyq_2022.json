@@ -1,180 +1,151 @@
 {
-  "exam": "GATE",
-  "subject": "Operating Systems",
-  "year": "2022",
-  "duration": 30,
-  "total_marks": 15,
-  "instructions": "Each correct MCQ carries the marks listed. Negative marking applies as listed per question.",
+  "meta": {
+    "exam": "GATE",
+    "subject": "Operating Systems",
+    "year": "PYQ 2022",
+    "total_marks": 15,
+    "duration_minutes": 30
+  },
   "questions": [
     {
       "id": 1,
-      "type": "mcq",
-      "question": "Which scheduling algorithm can lead to starvation of low-priority processes?",
-      "options": {
-        "A": "Round Robin",
-        "B": "First Come First Serve",
-        "C": "Priority Scheduling",
-        "D": "Shortest Job First (non-preemptive)"
-      },
+      "type": "MCQ",
+      "question": "Which of the following CPU scheduling algorithms can cause starvation?",
+      "options": { "A": "Round Robin", "B": "FCFS", "C": "Priority Scheduling", "D": "Shortest Job First (preemptive)" },
       "correct": "C",
-      "explanation": "Priority Scheduling can starve low-priority processes if high-priority processes keep arriving. This is solved by aging — gradually increasing the priority of waiting processes over time.",
-      "difficulty": "easy",
+      "explanation": "Priority Scheduling can cause starvation because low-priority processes may wait indefinitely if high-priority processes keep arriving. Aging is commonly used to solve this. SJF can also cause starvation but Priority is the canonical answer here.",
+      "difficulty": "Easy",
       "topic": "CPU Scheduling",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 2,
-      "type": "mcq",
-      "question": "Which of the following is NOT a necessary condition for deadlock?",
+      "type": "MCQ",
+      "question": "In paging, internal fragmentation occurs because:",
       "options": {
-        "A": "Mutual Exclusion",
-        "B": "Hold and Wait",
-        "C": "Preemption",
-        "D": "Circular Wait"
+        "A": "Processes are allocated more frames than needed",
+        "B": "The last page may not be completely full",
+        "C": "Pages have different sizes",
+        "D": "The page table is too large"
       },
-      "correct": "C",
-      "explanation": "The four necessary conditions for deadlock (Coffman's conditions) are: Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait. Preemption (the ability to forcibly take a resource) would PREVENT deadlock, not cause it.",
-      "difficulty": "easy",
-      "topic": "Deadlock",
+      "correct": "B",
+      "explanation": "Internal fragmentation in paging happens because the last page allocated to a process may not be completely used, wasting the remaining space within that fixed-size page frame.",
+      "difficulty": "Easy",
+      "topic": "Memory Management",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 3,
-      "type": "mcq",
-      "question": "In demand paging, what happens when a process accesses a page that is not currently in physical memory?",
-      "options": {
-        "A": "Segmentation fault",
-        "B": "Page fault",
-        "C": "TLB miss",
-        "D": "Bus error"
-      },
+      "type": "MCQ",
+      "question": "Which of the following is NOT a necessary condition for deadlock?",
+      "options": { "A": "Mutual Exclusion", "B": "Preemption", "C": "Hold and Wait", "D": "Circular Wait" },
       "correct": "B",
-      "explanation": "A page fault occurs when a process accesses a page not present in physical memory. The OS handles this interrupt by loading the required page from secondary storage into a free frame, then resuming the process.",
-      "difficulty": "easy",
-      "topic": "Memory Management",
+      "explanation": "The four necessary conditions for deadlock (Coffman conditions) are: Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait. Preemption (as a condition) means NO preemption; its presence prevents deadlock.",
+      "difficulty": "Easy",
+      "topic": "Deadlocks",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 4,
-      "type": "mcq",
-      "question": "The Banker's Algorithm is used for:",
-      "options": {
-        "A": "Deadlock detection",
-        "B": "Deadlock avoidance",
-        "C": "Deadlock prevention",
-        "D": "Deadlock recovery"
-      },
-      "correct": "B",
-      "explanation": "The Banker's Algorithm is a deadlock avoidance algorithm. It simulates resource allocation to check if the resulting state is safe before granting a request, ensuring the system never enters an unsafe state.",
-      "difficulty": "easy",
-      "topic": "Deadlock",
+      "type": "MCQ",
+      "question": "A page replacement algorithm that replaces the page that will not be used for the longest time in the future is called:",
+      "options": { "A": "LRU", "B": "FIFO", "C": "Optimal (OPT)", "D": "Clock" },
+      "correct": "C",
+      "explanation": "The Optimal (Bélády's) algorithm replaces the page that won't be needed for the longest time. It has the lowest page fault rate of all algorithms but is impossible to implement (requires future knowledge); it serves as a benchmark.",
+      "difficulty": "Easy",
+      "topic": "Memory Management",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 5,
-      "type": "mcq",
-      "question": "Consider 3 processes with burst times: P1=6, P2=4, P3=2. Using SJF (non-preemptive) with all arriving at t=0, what is the average waiting time?",
+      "type": "MCQ",
+      "question": "Consider a system with 3 processes and 4 resource types (A=2, B=1, C=3, D=2). Which state correctly applies the Banker's algorithm safe sequence?",
       "options": {
-        "A": "2.33",
-        "B": "4.00",
-        "C": "3.33",
-        "D": "6.00"
+        "A": "P1 → P0 → P2",
+        "B": "P2 → P1 → P0",
+        "C": "P0 → P2 → P1",
+        "D": "Cannot determine without Allocation/Max tables"
       },
-      "correct": "A",
-      "explanation": "SJF order: P3(2), P2(4), P1(6). Waiting times: P3=0, P2=2, P1=6. Average = (0+2+6)/3 = 8/3 ≈ 2.67. Correct: order P3→P2→P1, finish at 2,6,12. Wait: P3=0, P2=2, P1=6. Avg=(0+2+6)/3=2.67. Closest option is A.",
-      "difficulty": "medium",
-      "topic": "CPU Scheduling",
-      "marks": 2,
-      "negative_marking": 0.67
+      "correct": "D",
+      "explanation": "The Banker's algorithm requires complete Allocation and Max matrices to compute the Need matrix and find a safe sequence. Without those, a safe sequence cannot be determined.",
+      "difficulty": "Medium",
+      "topic": "Deadlocks",
+      "marks": 1,
+      "negative_marking": 0.33
     },
     {
       "id": 6,
-      "type": "mcq",
-      "question": "Which page replacement algorithm suffers from Belady's Anomaly?",
+      "type": "MCQ",
+      "question": "Thrashing in a multiprogramming OS occurs because:",
       "options": {
-        "A": "Optimal (OPT)",
-        "B": "Least Recently Used (LRU)",
-        "C": "First In First Out (FIFO)",
-        "D": "Most Recently Used (MRU)"
+        "A": "Too many processes are waiting for CPU",
+        "B": "Processes spend more time paging than executing",
+        "C": "The page table exceeds main memory",
+        "D": "The CPU utilization is 100%"
       },
-      "correct": "C",
-      "explanation": "Belady's Anomaly: increasing the number of page frames can actually increase page faults. FIFO suffers from this. Stack-based algorithms (OPT, LRU) are immune to Belady's Anomaly because they have the stack property.",
-      "difficulty": "medium",
+      "correct": "B",
+      "explanation": "Thrashing occurs when the degree of multiprogramming is so high that processes have insufficient frames, causing constant page faults. The system spends nearly all its time servicing page faults rather than executing instructions.",
+      "difficulty": "Medium",
       "topic": "Memory Management",
-      "marks": 2,
-      "negative_marking": 0.67
+      "marks": 1,
+      "negative_marking": 0.33
     },
     {
       "id": 7,
-      "type": "mcq",
-      "question": "A semaphore initialized to 1 and used to ensure mutual exclusion is called a:",
+      "type": "MCQ",
+      "question": "Semaphores used to solve critical section problems must have which property?",
       "options": {
-        "A": "Counting semaphore",
-        "B": "Binary semaphore (mutex)",
-        "C": "Monitor",
-        "D": "Spinlock"
+        "A": "Mutual exclusion only",
+        "B": "Progress and bounded waiting only",
+        "C": "Mutual exclusion, progress, and bounded waiting",
+        "D": "Only bounded waiting"
       },
-      "correct": "B",
-      "explanation": "A binary semaphore (also called a mutex) is initialized to 1. It allows only one process into the critical section at a time. Counting semaphores can be initialized to any value N to allow N concurrent accesses.",
-      "difficulty": "easy",
-      "topic": "Synchronization",
+      "correct": "C",
+      "explanation": "A valid critical section solution must satisfy all three: Mutual Exclusion (at most one process in the CS), Progress (no unnecessary blocking), and Bounded Waiting (finite wait time for each process).",
+      "difficulty": "Easy",
+      "topic": "Process Synchronisation",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 8,
-      "type": "mcq",
-      "question": "In a system with 32-bit virtual addresses and 4KB pages, how many entries does the page table have?",
-      "options": {
-        "A": "2^10",
-        "B": "2^12",
-        "C": "2^20",
-        "D": "2^32"
-      },
+      "type": "MCQ",
+      "question": "Which of the following is an example of a preemptive scheduling algorithm?",
+      "options": { "A": "FCFS", "B": "Shortest Job First (non-preemptive)", "C": "SRTF (Shortest Remaining Time First)", "D": "Priority (non-preemptive)" },
       "correct": "C",
-      "explanation": "Page size = 4KB = 2^12 bytes. Virtual address space = 2^32 bytes. Number of pages = 2^32 / 2^12 = 2^20 entries. Each entry in the page table corresponds to one virtual page.",
-      "difficulty": "medium",
-      "topic": "Memory Management",
-      "marks": 2,
-      "negative_marking": 0.67
-    },
-    {
-      "id": 9,
-      "type": "mcq",
-      "question": "Which of the following is an example of an I/O-bound process?",
-      "options": {
-        "A": "Matrix multiplication",
-        "B": "Image rendering",
-        "C": "Web server handling file downloads",
-        "D": "Sorting a large in-memory array"
-      },
-      "correct": "C",
-      "explanation": "I/O-bound processes spend most time waiting for input/output. A web server handling file downloads waits on disk I/O and network I/O. CPU-bound processes (matrix multiply, rendering, sorting) spend most time in computation.",
-      "difficulty": "easy",
-      "topic": "Process Management",
+      "explanation": "SRTF (preemptive SJF) is preemptive because a running process can be interrupted if a new process arrives with a shorter remaining burst time. FCFS, non-preemptive SJF, and non-preemptive Priority all run a process to completion once started.",
+      "difficulty": "Easy",
+      "topic": "CPU Scheduling",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
-      "id": 10,
-      "type": "mcq",
-      "question": "In UNIX, the fork() system call creates a child process. What does fork() return in the parent process?",
-      "options": {
-        "A": "0",
-        "B": "The PID of the child",
-        "C": "The PID of the parent",
-        "D": "-1 on success"
-      },
-      "correct": "B",
-      "explanation": "fork() returns: in the parent — the PID (Process ID) of the newly created child; in the child — 0; on failure — -1. This allows both parent and child to distinguish their roles after the call.",
-      "difficulty": "hard",
-      "topic": "Process Management",
+      "id": 9,
+      "type": "MCQ",
+      "question": "In a virtual memory system with a page size of 4KB and a 32-bit address space, how many entries does the page table have?",
+      "options": { "A": "1M", "B": "4M", "C": "1K", "D": "16K" },
+      "correct": "A",
+      "explanation": "Number of pages = Total address space / Page size = 2^32 / 2^12 = 2^20 = 1,048,576 ≈ 1M entries. Each entry in the page table corresponds to one virtual page.",
+      "difficulty": "Medium",
+      "topic": "Memory Management",
       "marks": 2,
-      "negative_marking": 0.67
+      "negative_marking": 0.66
+    },
+    {
+      "id": 10,
+      "type": "MCQ",
+      "question": "The FIFO page replacement algorithm suffers from which anomaly?",
+      "options": { "A": "Thrashing", "B": "Bélády's anomaly", "C": "Priority inversion", "D": "Aging anomaly" },
+      "correct": "B",
+      "explanation": "Bélády's anomaly is the counterintuitive phenomenon where increasing the number of page frames can actually increase the number of page faults for FIFO. This anomaly does not affect LRU or OPT algorithms.",
+      "difficulty": "Hard",
+      "topic": "Memory Management",
+      "marks": 2,
+      "negative_marking": 0.66
     }
   ]
 }

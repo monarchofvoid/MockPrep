@@ -3,6 +3,23 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+class SignupRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: "UserOut"
+
+
 # ─── User ─────────────────────────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
@@ -45,8 +62,6 @@ class QuestionOut(BaseModel):
     topic: str
     marks: float
     negative_marking: float
-    # 'correct' and 'explanation' are NOT exposed during the test,
-    # only returned in the results response
 
 
 class QuestionWithAnswer(QuestionOut):
@@ -57,8 +72,7 @@ class QuestionWithAnswer(QuestionOut):
 # ─── Start Attempt ────────────────────────────────────────────────────────────
 
 class StartAttemptRequest(BaseModel):
-    user_id: int
-    mock_id: str
+    mock_id: str      # user_id comes from JWT — never trust the body
 
 class StartAttemptResponse(BaseModel):
     attempt_id: int
@@ -156,3 +170,7 @@ class UserAnalytics(BaseModel):
     strongest_topic: Optional[str]
     weakest_topic: Optional[str]
     recent_attempts: List[AttemptSummary]
+
+
+# Resolve forward ref
+TokenResponse.model_rebuild()

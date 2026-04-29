@@ -1,180 +1,141 @@
 {
-  "exam": "GATE",
-  "subject": "DBMS",
-  "year": "2021",
-  "duration": 30,
-  "total_marks": 15,
-  "instructions": "Each correct MCQ carries the marks listed. Negative marking applies as listed per question.",
+  "meta": {
+    "exam": "GATE",
+    "subject": "Database Management Systems",
+    "year": "PYQ 2021",
+    "total_marks": 15,
+    "duration_minutes": 30
+  },
   "questions": [
     {
       "id": 1,
-      "type": "mcq",
-      "question": "Which normal form eliminates partial dependencies from a relation?",
-      "options": {
-        "A": "First Normal Form (1NF)",
-        "B": "Second Normal Form (2NF)",
-        "C": "Third Normal Form (3NF)",
-        "D": "Boyce-Codd Normal Form (BCNF)"
-      },
+      "type": "MCQ",
+      "question": "Which normal form is violated if a relation has a partial dependency on the primary key?",
+      "options": { "A": "1NF", "B": "2NF", "C": "3NF", "D": "BCNF" },
       "correct": "B",
-      "explanation": "2NF removes partial dependencies — every non-key attribute must depend on the whole primary key, not just part of it. This applies only to relations with composite primary keys.",
-      "difficulty": "easy",
-      "topic": "Normalization",
+      "explanation": "2NF is violated when a non-prime attribute is partially dependent on the primary key (i.e., dependent on a proper subset of a composite key). 1NF only requires atomicity of attributes.",
+      "difficulty": "Easy",
+      "topic": "Normalisation",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 2,
-      "type": "mcq",
-      "question": "Which SQL JOIN returns all rows from both tables, placing NULLs where there is no match on either side?",
-      "options": {
-        "A": "INNER JOIN",
-        "B": "LEFT OUTER JOIN",
-        "C": "RIGHT OUTER JOIN",
-        "D": "FULL OUTER JOIN"
-      },
-      "correct": "D",
-      "explanation": "FULL OUTER JOIN returns all rows from both tables. For rows with no match, the columns from the missing side are filled with NULL. It is the union of LEFT and RIGHT outer joins.",
-      "difficulty": "easy",
-      "topic": "SQL",
+      "type": "MCQ",
+      "question": "In SQL, which clause is used to filter groups formed by the GROUP BY clause?",
+      "options": { "A": "WHERE", "B": "FILTER", "C": "HAVING", "D": "QUALIFY" },
+      "correct": "C",
+      "explanation": "HAVING filters groups after aggregation, whereas WHERE filters individual rows before grouping. Only HAVING can reference aggregate functions.",
+      "difficulty": "Easy",
+      "topic": "SQL Queries",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 3,
-      "type": "mcq",
-      "question": "In an ER diagram using Chen notation, which shape represents a relationship set?",
-      "options": {
-        "A": "Rectangle",
-        "B": "Ellipse",
-        "C": "Diamond",
-        "D": "Double rectangle"
-      },
-      "correct": "C",
-      "explanation": "In Chen ER notation: rectangles represent entity sets, ellipses represent attributes, diamonds represent relationship sets, and double rectangles represent weak entity sets.",
-      "difficulty": "easy",
-      "topic": "ER Diagram",
-      "marks": 1,
-      "negative_marking": 0.33
-    },
-    {
-      "id": 4,
-      "type": "mcq",
-      "question": "Which of the following is NOT one of the ACID properties of a database transaction?",
-      "options": {
-        "A": "Atomicity",
-        "B": "Consistency",
-        "C": "Distribution",
-        "D": "Durability"
-      },
-      "correct": "C",
-      "explanation": "ACID stands for Atomicity, Consistency, Isolation, Durability. Distribution is not an ACID property — it relates to distributed systems architecture, not transaction semantics.",
-      "difficulty": "easy",
+      "type": "MCQ",
+      "question": "A transaction that reads a value, is then rolled back, and another transaction that read the same value commits — which anomaly is this?",
+      "options": { "A": "Dirty Read", "B": "Phantom Read", "C": "Non-Repeatable Read", "D": "Lost Update" },
+      "correct": "A",
+      "explanation": "A dirty read occurs when a transaction reads data that has been modified by another transaction which has not yet committed (and may later be rolled back).",
+      "difficulty": "Medium",
       "topic": "Transactions",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
-      "id": 5,
-      "type": "mcq",
-      "question": "A relation R(A, B, C, D) has functional dependencies A→B, B→C, and A→D. What is the candidate key of R?",
+      "id": 4,
+      "type": "MCQ",
+      "question": "Which of the following is NOT a property of a relation in the relational model?",
       "options": {
-        "A": "A",
-        "B": "B",
-        "C": "AB",
-        "D": "AD"
+        "A": "Tuples are unordered",
+        "B": "Attribute values are atomic",
+        "C": "Every tuple must have a NULL primary key",
+        "D": "All attribute values in a column are of the same domain"
       },
-      "correct": "A",
-      "explanation": "A determines B (A→B), B determines C so A→C transitively, and A→D directly. Thus A determines {A, B, C, D} — all attributes. Since no proper subset of {A} can do the same, A is the sole candidate key.",
-      "difficulty": "medium",
-      "topic": "Functional Dependencies",
-      "marks": 2,
-      "negative_marking": 0.67
+      "correct": "C",
+      "explanation": "The primary key must be NOT NULL (entity integrity rule). All other options are valid properties of the relational model.",
+      "difficulty": "Easy",
+      "topic": "Relational Model",
+      "marks": 1,
+      "negative_marking": 0.33
+    },
+    {
+      "id": 5,
+      "type": "MCQ",
+      "question": "Which SQL join returns all rows from both tables, including unmatched rows from each side?",
+      "options": { "A": "INNER JOIN", "B": "LEFT OUTER JOIN", "C": "CROSS JOIN", "D": "FULL OUTER JOIN" },
+      "correct": "D",
+      "explanation": "FULL OUTER JOIN returns all rows from both tables. Where there's no match, NULLs are filled in. LEFT JOIN only returns all rows from the left table.",
+      "difficulty": "Easy",
+      "topic": "SQL Queries",
+      "marks": 1,
+      "negative_marking": 0.33
     },
     {
       "id": 6,
-      "type": "mcq",
-      "question": "Which index structure is MOST efficient for range queries on a sorted attribute?",
-      "options": {
-        "A": "Hash Index",
-        "B": "B+ Tree Index",
-        "C": "Bitmap Index",
-        "D": "Inverted Index"
-      },
-      "correct": "B",
-      "explanation": "B+ Trees store sorted data with all values in leaf nodes linked together in a doubly-linked list, enabling efficient range queries with O(log n) search followed by sequential leaf traversal. Hash indexes only support equality queries.",
-      "difficulty": "medium",
-      "topic": "Indexing",
+      "type": "MCQ",
+      "question": "Given R(A, B, C, D) with FDs: AB→C, C→D, D→A. What is the candidate key?",
+      "options": { "A": "AB", "B": "BC", "C": "AB and BC", "D": "AB, BC, and BD" },
+      "correct": "C",
+      "explanation": "Closure of AB: AB→C→D→A, so AB+ = {A,B,C,D}. Closure of BC: BC→D→A, BC+ = {A,B,C,D}. Both AB and BC are candidate keys. BD is not since BD→A but doesn't cover C.",
+      "difficulty": "Hard",
+      "topic": "Normalisation",
       "marks": 2,
-      "negative_marking": 0.67
+      "negative_marking": 0.66
     },
     {
       "id": 7,
-      "type": "mcq",
-      "question": "In relational algebra, which operation selects specific tuples (rows) from a relation based on a predicate condition?",
-      "options": {
-        "A": "Projection (π)",
-        "B": "Selection (σ)",
-        "C": "Natural Join (⋈)",
-        "D": "Rename (ρ)"
-      },
+      "type": "MCQ",
+      "question": "Which isolation level prevents dirty reads but allows non-repeatable reads?",
+      "options": { "A": "READ UNCOMMITTED", "B": "READ COMMITTED", "C": "REPEATABLE READ", "D": "SERIALIZABLE" },
       "correct": "B",
-      "explanation": "Selection (σ) filters tuples based on a condition — it is a horizontal operation. Projection (π) selects specific columns (vertical). Natural Join combines two relations on common attributes. Rename changes the relation/attribute name.",
-      "difficulty": "easy",
-      "topic": "Relational Algebra",
+      "explanation": "READ COMMITTED prevents dirty reads (only committed data is read) but a second read in the same transaction can return different results if another transaction commits in between (non-repeatable read).",
+      "difficulty": "Medium",
+      "topic": "Transactions",
       "marks": 1,
       "negative_marking": 0.33
     },
     {
       "id": 8,
-      "type": "mcq",
-      "question": "Two-Phase Locking (2PL) protocol guarantees which of the following?",
-      "options": {
-        "A": "Deadlock prevention",
-        "B": "Conflict serializability",
-        "C": "Deadlock detection",
-        "D": "Starvation freedom"
-      },
+      "type": "MCQ",
+      "question": "A B+ tree of order m can have at most ___ keys in an internal node.",
+      "options": { "A": "m", "B": "m-1", "C": "m+1", "D": "2m" },
       "correct": "B",
-      "explanation": "2PL guarantees conflict serializability by ensuring every schedule under 2PL is conflict-serializable. It does NOT prevent deadlocks — that requires additional protocols like wait-die or wound-wait.",
-      "difficulty": "hard",
-      "topic": "Concurrency Control",
-      "marks": 2,
-      "negative_marking": 0.67
+      "explanation": "In a B+ tree of order m, each internal node has at most m pointers (children) and therefore m-1 keys. Leaf nodes can have up to m-1 key-value pairs.",
+      "difficulty": "Medium",
+      "topic": "Indexing",
+      "marks": 1,
+      "negative_marking": 0.33
     },
     {
       "id": 9,
-      "type": "mcq",
-      "question": "A B+ tree of order m can hold at most how many keys per internal node?",
+      "type": "MCQ",
+      "question": "Which of the following is the correct order of operations in SQL query processing?",
       "options": {
-        "A": "m",
-        "B": "m + 1",
-        "C": "m - 1",
-        "D": "m / 2"
+        "A": "SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY",
+        "B": "FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY",
+        "C": "FROM → GROUP BY → WHERE → HAVING → SELECT → ORDER BY",
+        "D": "WHERE → FROM → SELECT → GROUP BY → HAVING → ORDER BY"
       },
-      "correct": "C",
-      "explanation": "A B+ tree of order m means each node can have at most m children (pointers). Since a node with m children needs m-1 keys to separate them, the maximum number of keys per internal node is m-1.",
-      "difficulty": "hard",
-      "topic": "B+ Trees",
-      "marks": 2,
-      "negative_marking": 0.67
+      "correct": "B",
+      "explanation": "SQL logical processing order: FROM (including JOINs) → WHERE → GROUP BY → HAVING → SELECT → ORDER BY. This is why column aliases defined in SELECT cannot be used in WHERE.",
+      "difficulty": "Medium",
+      "topic": "SQL Queries",
+      "marks": 1,
+      "negative_marking": 0.33
     },
     {
       "id": 10,
-      "type": "mcq",
-      "question": "Which type of integrity constraint ensures that a value in one table's column corresponds to a valid value in another table?",
-      "options": {
-        "A": "Domain constraint",
-        "B": "Entity integrity constraint",
-        "C": "Referential integrity constraint",
-        "D": "Key constraint"
-      },
-      "correct": "C",
-      "explanation": "Referential integrity constraints (enforced via foreign keys) ensure that a value in one table's foreign key column must exist as a primary key in the referenced table, preventing orphan records.",
-      "difficulty": "medium",
-      "topic": "Integrity Constraints",
-      "marks": 1,
-      "negative_marking": 0.33
+      "type": "MCQ",
+      "question": "Two-phase locking (2PL) protocol guarantees which of the following?",
+      "options": { "A": "Deadlock freedom", "B": "Serializability", "C": "No dirty reads", "D": "Cascadeless schedules" },
+      "correct": "B",
+      "explanation": "2PL guarantees conflict serializability. It does NOT prevent deadlocks (strict 2PL prevents cascading rollbacks, not deadlocks). Deadlock prevention requires additional mechanisms like wound-wait or wait-die.",
+      "difficulty": "Hard",
+      "topic": "Transactions",
+      "marks": 2,
+      "negative_marking": 0.66
     }
   ]
 }
