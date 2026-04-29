@@ -85,17 +85,6 @@ def seed():
     db = SessionLocal()
 
     try:
-        # ── Guest user ────────────────────────────────────────────
-        existing_user = db.query(models.User).filter_by(email="guest@mockprep.dev").first()
-        if not existing_user:
-            user = models.User(name="Guest User", email="guest@mockprep.dev")
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            print(f"✅ Created guest user — id: {user.id}")
-        else:
-            print(f"ℹ  Guest user already exists — id: {existing_user.id}")
-
         # ── Scan question_bank/ ───────────────────────────────────
         json_files = sorted(QB_ROOT.rglob("*.json"))
 
