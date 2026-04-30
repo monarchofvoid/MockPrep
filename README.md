@@ -28,152 +28,211 @@ cd backend
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-cp .env.example .env
-# Edit .env — set SECRET_KEY to a long random string
-
-uvicorn main:app --reload --port 8000
 ```
 
-API available at: http://localhost:8000  
-Swagger docs at:  http://localhost:8000/docs
+# VYAS — Virtual Yield Assessment System
 
-### 2. Frontend
+> An intelligent mock examination platform built to simulate real competitive exams, evaluate performance, and help aspirants improve through data-driven practice.
 
-```bash
-cd frontend
-npm install
+---
 
-cp .env.example .env.local
-# Edit .env.local — set VITE_API_URL=http://localhost:8000
+## Overview
 
-npm run dev
+VYAS is a full-stack assessment platform designed to make exam preparation more structured, measurable, and effective.
+
+Instead of treating mock tests as isolated practice sessions, VYAS approaches preparation as a complete ecosystem where users can:
+
+- Take realistic timed mock examinations  
+- Receive instant automated evaluation  
+- Analyze strengths and weaknesses  
+- Track performance over multiple attempts  
+- Practice in an environment close to actual exams
+
+The objective is simple:
+
+**Transform preparation from random practice into strategic improvement.**
+
+---
+
+## Why VYAS?
+
+Competitive exam preparation often lacks a unified system for testing, evaluation, and progress tracking.
+
+VYAS brings these together into one platform by combining:
+
+- Real exam simulation  
+- Automated scoring engine  
+- Analytics-driven feedback  
+- Secure user accounts and attempt history  
+- Structured question bank management
+
+It is designed not just to conduct tests, but to support better learning through assessment.
+
+---
+
+## Key Features
+
+### Timed Mock Test Engine
+- Realistic exam-like interface  
+- Question palette navigation  
+- Timed submissions  
+- Automated result generation  
+- Support for negative marking
+
+### Performance Analytics
+- Score breakdowns  
+- Accuracy insights  
+- Topic-wise analysis  
+- Attempt history tracking  
+- Progress monitoring over time
+
+### Secure Full-Stack Architecture
+- JWT-based authentication  
+- Protected routes and sessions  
+- Fast and scalable API architecture  
+- Persistent user data and results
+
+---
+
+## Tech Stack
 ```
+| Layer | Technology |
+|-------|------------|
+| Frontend | React + Vite |
+| Backend | FastAPI |
+| Authentication | JWT |
+| ORM | SQLAlchemy |
+| Database | SQLite / PostgreSQL |
+| Deployment | Vercel + Render |
+```
+---
 
-App available at: http://localhost:5173
+## Project Vision
+
+VYAS was built with a broader vision beyond mock testing.
+
+Future scope includes:
+
+- Adaptive testing systems  
+- Personalized performance feedback  
+- AI-assisted evaluation insights  
+- Multi-exam support  
+- Smarter learning analytics
+
+This project is a step toward intelligent assessment systems.
 
 ---
 
 ## Project Structure
 
-```
+```bash
 vyas/
 ├── backend/
-│   ├── main.py              # FastAPI app + all routes
-│   ├── auth.py              # JWT + bcrypt helpers
-│   ├── models.py            # SQLAlchemy ORM models
-│   ├── schemas.py           # Pydantic request/response schemas
-│   ├── database.py          # DB engine + session dependency
-│   ├── services/
-│   │   ├── evaluation.py    # Scoring engine (Module D)
-│   │   └── analytics.py     # Analytics aggregation (Module E)
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── render.yaml
+│   ├── main.py
+│   ├── auth.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── database.py
+│   └── services/
+│       ├── evaluation.py
+│       └── analytics.py
+│
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx
-│   │   ├── App.jsx          # Router + AuthProvider
-│   │   ├── api/
-│   │   │   └── client.js    # All API calls + token management
-│   │   ├── context/
-│   │   │   └── AuthContext.jsx
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx
-│   │   │   └── ProtectedRoute.jsx
 │   │   ├── pages/
-│   │   │   ├── LandingPage.jsx   # Public: login + signup modal
-│   │   │   ├── Dashboard.jsx     # Analytics overview
-│   │   │   ├── MockBrowser.jsx   # Paper catalogue
-│   │   │   ├── TestPage.jsx      # Exam engine + palette
-│   │   │   └── ResultsPage.jsx   # Results + question review
-│   │   └── styles/               # CSS Modules per page
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── vercel.json
+│   │   ├── components/
+│   │   ├── context/
+│   │   └── api/
 │   └── package.json
+│
 └── question_bank/
-    ├── dbms/
-    │   └── pyq_2021.json
-    └── os/
-        └── pyq_2022.json
 ```
 
 ---
 
-## Auth Flow
+## Core Modules
 
+- Authentication System  
+- Mock Test Engine  
+- Automated Evaluation Module  
+- Analytics Dashboard  
+- Question Bank Management
+
+---
+
+## Running Locally
+
+### Backend
+
+```bash
+cd backend
+
+python -m venv venv
+source venv/bin/activate
+# Windows:
+# venv\Scripts\activate
+
+pip install -r requirements.txt
+
+uvicorn main:app --reload --port 8000
 ```
-User visits /         → LandingPage (public)
-  ↓ signup / login
-POST /auth/signup or /auth/login
-  ↓ returns { access_token, user }
-Stored in localStorage (vyas_token, vyas_user)
-  ↓
-All subsequent API calls include Authorization: Bearer <token>
-  ↓
-Protected routes guarded by <ProtectedRoute>
-401 response → auto-logout + redirect to /
+
+Backend runs at:
+
+```bash
+http://localhost:8000
 ```
 
 ---
 
-## API Endpoints
+### Frontend
 
-| Method | Path                  | Auth | Description                       |
-|--------|-----------------------|------|-----------------------------------|
-| POST   | /auth/signup          | No   | Register + get token              |
-| POST   | /auth/login           | No   | Login + get token                 |
-| GET    | /auth/me              | Yes  | Current user profile              |
-| GET    | /mocks                | Yes  | List all mock tests               |
-| POST   | /start-attempt        | Yes  | Begin test session                |
-| POST   | /submit-attempt       | Yes  | Submit + evaluate answers         |
-| GET    | /results/{attempt_id} | Yes  | Get results for an attempt        |
-| GET    | /analytics/me         | Yes  | Aggregated user analytics         |
-| GET    | /users/me/attempts    | Yes  | All attempts list                 |
+```bash
+cd frontend
+
+npm install
+npm run dev
+```
+
+Frontend runs at:
+
+```bash
+http://localhost:5173
+```
 
 ---
 
 ## Deployment
 
-### Backend (Render)
+### Frontend
+Deployed using **Vercel**
 
-1. Push repo to GitHub
-2. Create new **Web Service** on Render, point to `backend/`
-3. Set environment variables (see `render.yaml`)
-4. Add a free **PostgreSQL** database and link via `DATABASE_URL`
-5. Deploy — Render auto-runs `uvicorn main:app`
+### Backend
+Deployed using **Render / Railway**
 
-### Frontend (Vercel)
+Production Database:
 
-1. Import frontend directory into Vercel
-2. Set **Root Directory** to `frontend`
-3. Add environment variable: `VITE_API_URL=https://your-api.onrender.com`
-4. Deploy — `vercel.json` handles SPA routing
+- PostgreSQL
 
 ---
 
-## Adding More Question Banks
+## Why the Name VYAS?
 
-1. Create a JSON file in `question_bank/<subject>/` following the schema:
-```json
-{
-  "meta": { "exam": "GATE", "subject": "...", "year": "...", ... },
-  "questions": [
-    {
-      "id": 1,
-      "type": "MCQ",
-      "question": "...",
-      "options": { "A": "...", "B": "...", "C": "...", "D": "..." },
-      "correct": "A",
-      "explanation": "...",
-      "difficulty": "Easy|Medium|Hard",
-      "topic": "...",
-      "marks": 1,
-      "negative_marking": 0.33
-    }
-  ]
-}
-```
-2. Add an entry to the `registry` list in `main.py → seed_mock_tests()`.
-3. Restart the backend — the new paper appears in MockBrowser automatically.
+Inspired by **Vyasa**, symbolizing knowledge, wisdom, and authorship,
+
+**VYAS** represents structured learning powered by intelligent assessment.
+
+---
+
+## Author
+
+**Abhinav Singh**  
+B.Tech Student | AI/ML Enthusiast | Full Stack Developer
+
+Built as a vision to combine software engineering with educational impact.
+
+---
+
+## Support
+
+If you found this project interesting, consider giving it a ⭐ on GitHub.
