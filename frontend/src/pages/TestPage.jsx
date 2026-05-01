@@ -100,8 +100,14 @@ export default function TestPage() {
   const [loadError,   setLoadError]   = useState("");
   const [recovering,  setRecovering]  = useState(false);
 
-  const timerRef = useRef(null);
-  const numId    = parseInt(attemptId);
+  const timerRef      = useRef(null);
+  const currentIdxRef = useRef(0);   // shadow ref so timer always has fresh index
+  const numId         = parseInt(attemptId);
+
+  // Keep the ref in sync with state
+  useEffect(() => {
+    currentIdxRef.current = currentIdx;
+  }, [currentIdx]);
 
   // ── Step 1: Hydrate from localStorage OR navState OR re-fetch ────────────
 
@@ -133,13 +139,13 @@ export default function TestPage() {
 
       setQuestions(questions);
       setMockMeta({ mock_id, total_marks, duration_minutes });
-      setQStates(initialQStates);
       setTimeLeft(initialTime);
 
-      // Mark Q1 as visited immediately
+      // Mark Q1 as visited via the same path as all other navigations
       const withVisit = [...initialQStates];
       withVisit[0] = { ...withVisit[0], visit_count: 1 };
       setQStates(withVisit);
+      // currentIdx stays 0 (default) — no extra goToQuestion call that would double-count
       return;
     }
 
@@ -186,29 +192,24 @@ export default function TestPage() {
 
       setTotalElapsed((prev) => prev + 1);
 
-      // Accumulate time on current question
+      // Use ref so interval always reads the current question without restarting
       setQStates((prev) => {
         if (!prev) return prev;
         const updated = [...prev];
-        updated[currentIdx] = {
-          ...updated[currentIdx],
-          time_spent_seconds: updated[currentIdx].time_spent_seconds + 1,
+        const idx = currentIdxRef.current;
+        updated[idx] = {
+          ...updated[idx],
+          time_spent_seconds: updated[idx].time_spent_seconds + 1,
         };
         return updated;
       });
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [timeLeft === null, submitting, currentIdx]);
-  // ^ Only re-run when loading finishes, submitting changes, or question changes.
-  // Intentionally NOT re-running on every timeLeft tick.
+  }, [timeLeft === null, submitting]);
+  // currentIdx intentionally excluded — read via currentIdxRef to avoid restarting interval on navigation
 
-  // Auto-submit when timeLeft hits 0
-  useEffect(() => {
-    if (timeLeft === 0 && !submitting) {
-      handleAutoSubmit();
-    }
-  }, [timeLeft]);
+  // Auto-submit handled solely inside the timer effect above — no duplicate effect here
 
   // ── Step 4: Online/offline detection ─────────────────────────────────────
 

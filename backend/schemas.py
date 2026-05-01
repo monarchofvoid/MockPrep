@@ -57,6 +57,7 @@ class QuestionOut(BaseModel):
     id: int
     type: str
     question: str
+    passage: Optional[str] = None
     options: Dict[str, str]
     difficulty: str
     topic: str
@@ -110,6 +111,7 @@ class TopicPerformance(BaseModel):
 class QuestionReview(BaseModel):
     question_id: int
     question_text: str
+    passage: Optional[str] = None
     options: Dict[str, str]
     selected_option: Optional[str]
     correct_option: str

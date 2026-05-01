@@ -123,16 +123,22 @@ def seed_mock_tests(db: Session):
         if not existing:
             db.add(models.MockTest(**entry))
         else:
-            for k, v in entry.items():
-                setattr(existing, k, v)
+            changed = any(str(getattr(existing, k)) != str(v) for k, v in entry.items() if k != "id")
+            if changed:
+                for k, v in entry.items():
+                    setattr(existing, k, v)
 
     db.commit()
 
 
 @app.on_event("startup")
 def startup_event():
-    db = next(get_db())
-    seed_mock_tests(db)
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_mock_tests(db)
+    finally:
+        db.close()
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
@@ -233,6 +239,7 @@ def start_attempt(
             id=q["id"],
             type=q["type"],
             question=q["question"],
+            passage=q.get("passage"),
             options=q["options"],
             difficulty=q["difficulty"],
             topic=q["topic"],
@@ -338,6 +345,7 @@ def submit_attempt(
             schemas.QuestionReview(
                 question_id=qr["question_id"],
                 question_text=qr["question_text"],
+                passage=qr.get("passage"),
                 options=qr["options"],
                 selected_option=qr["selected_option"],
                 correct_option=qr["correct_option"],
@@ -393,6 +401,7 @@ def get_results(
             schemas.QuestionReview(
                 question_id=resp.question_id,
                 question_text=q.get("question", ""),
+                passage=q.get("passage"),
                 options=q.get("options", {}),
                 selected_option=resp.selected_option,
                 correct_option=q.get("correct", ""),
@@ -425,7 +434,7 @@ def get_results(
         year=mock.year,
         score=attempt.score,
         total_marks=attempt.total_marks,
-        score_percentage=round((attempt.score / attempt.total_marks) * 100, 1),
+        score_percentage=round((attempt.score / attempt.total_marks) * 100, 1) if attempt.total_marks else 0.0,
         correct_count=attempt.correct_count,
         wrong_count=attempt.wrong_count,
         skipped_count=attempt.skipped_count,
