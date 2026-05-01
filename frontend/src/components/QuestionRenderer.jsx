@@ -214,7 +214,7 @@ function PassageQuestion({ question }) {
     <div>
       {passage && (
         <div className={styles.passageBox}>
-          <div className={styles.passageLabel}>📄 Passage</div>
+          <div className={styles.passageLabel}>Passage</div>
           {question.passage_title && (
             <div className={styles.passageTitle}>{question.passage_title}</div>
           )}
@@ -444,9 +444,9 @@ export default function QuestionRenderer({
 }
 
 const FORMAT_LABELS = {
-  passage:   "📄 Passage-based",
-  match:     "🔗 Match the Following",
-  statement: "📋 Statement-based",
-  code:      "💻 Code / Technical",
-  nat:       "🔢 Numerical Answer",
+  passage:   "Passage-based",
+  match:     "Match the Following",
+  statement: "Statement-based",
+  code:      "Code / Technical",
+  nat:       "Numerical Answer",
 };

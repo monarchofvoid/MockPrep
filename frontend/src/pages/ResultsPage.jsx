@@ -9,11 +9,11 @@ function ScoreRing({ pct }) {
   const r = 54;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
-  const color = pct >= 70 ? "#059669" : pct >= 40 ? "#d97706" : "#dc2626";
+  const color = pct >= 70 ? "#22c55e" : pct >= 40 ? "#f59e0b" : "#ef4444";
 
   return (
     <svg width="140" height="140" viewBox="0 0 140 140">
-      <circle cx="70" cy="70" r={r} fill="none" stroke="#f3f4f6" strokeWidth="10" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
       <circle
         cx="70" cy="70" r={r}
         fill="none"
@@ -25,10 +25,10 @@ function ScoreRing({ pct }) {
         transform="rotate(-90 70 70)"
         style={{ transition: "stroke-dashoffset 1s ease" }}
       />
-      <text x="70" y="65" textAnchor="middle" fontSize="22" fontWeight="800" fill="#0f1e3d">
+      <text x="70" y="65" textAnchor="middle" fontSize="22" fontWeight="800" fill="#f5f0e8">
         {pct.toFixed(1)}%
       </text>
-      <text x="70" y="84" textAnchor="middle" fontSize="11" fill="#9ca3af" fontWeight="500">
+      <text x="70" y="84" textAnchor="middle" fontSize="11" fill="#9a9080" fontWeight="500">
         Score
       </text>
     </svg>
@@ -57,6 +57,8 @@ export default function ResultsPage() {
   const [error,   setError]   = useState("");
   const [tab,     setTab]     = useState("overview"); // "overview" | "review"
   const [filter,  setFilter]  = useState("all");      // "all" | "correct" | "wrong" | "skipped"
+  const [animatedScore, setAnimatedScore] = useState(0);
+  const [openReview, setOpenReview] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -73,6 +75,21 @@ export default function ResultsPage() {
     return () => { mounted = false; };
   }, [attemptId]);
 
+  useEffect(() => {
+    if (!data) return;
+    let frame;
+    const start = performance.now();
+    const duration = 900;
+    const target = data.score_percentage || 0;
+    const tick = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      setAnimatedScore(Number((target * progress).toFixed(1)));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [data]);
+
   if (loading) return (
     <div className={styles.page}>
       <Navbar />
@@ -87,7 +104,7 @@ export default function ResultsPage() {
     <div className={styles.page}>
       <Navbar />
       <div className={styles.center}>
-        <p className={styles.errorText}>⚠️ {error}</p>
+        <p className={styles.errorText}>{error}</p>
         <button className={styles.retryBtn} onClick={() => navigate("/dashboard")}>
           Back to Dashboard
         </button>
@@ -118,34 +135,34 @@ export default function ResultsPage() {
         <div className={styles.pageHeader}>
           <div>
             <button className={styles.backBtn} onClick={() => navigate("/dashboard")}>
-              ← Dashboard
+              Dashboard
             </button>
             <h1 className={styles.pageTitle}>{subject}</h1>
             <p className={styles.pageSub}>{year} · Attempt #{attemptId}</p>
           </div>
           <button className={styles.reattemptBtn} onClick={() => navigate("/mocks")}>
-            Try another mock →
+            Try another paper
           </button>
         </div>
 
         {/* ── Score hero ─────────────────────────────────────────── */}
         <div className={styles.scoreHero}>
           <div className={styles.scoreRing}>
-            <ScoreRing pct={score_percentage} />
+            <ScoreRing pct={animatedScore} />
           </div>
           <div className={styles.scoreBreakdown}>
             <div className={styles.sbItem}>
-              <span className={styles.sbVal} style={{ color: "#059669" }}>{correct_count}</span>
+              <span className={styles.sbVal} style={{ color: "#22c55e" }}>{correct_count}</span>
               <span className={styles.sbLbl}>Correct</span>
             </div>
             <div className={styles.sbDivider} />
             <div className={styles.sbItem}>
-              <span className={styles.sbVal} style={{ color: "#dc2626" }}>{wrong_count}</span>
+              <span className={styles.sbVal} style={{ color: "#ef4444" }}>{wrong_count}</span>
               <span className={styles.sbLbl}>Wrong</span>
             </div>
             <div className={styles.sbDivider} />
             <div className={styles.sbItem}>
-              <span className={styles.sbVal} style={{ color: "#6b7280" }}>{skipped_count}</span>
+              <span className={styles.sbVal} style={{ color: "#9a9080" }}>{skipped_count}</span>
               <span className={styles.sbLbl}>Skipped</span>
             </div>
           </div>
@@ -202,9 +219,9 @@ export default function ResultsPage() {
                     <span
                       className={styles.tcPct}
                       style={{
-                        color: tp.accuracy >= 70 ? "#059669"
-                             : tp.accuracy >= 40 ? "#d97706"
-                             : "#dc2626"
+                        color: tp.accuracy >= 70 ? "#22c55e"
+                             : tp.accuracy >= 40 ? "#f59e0b"
+                             : "#ef4444"
                       }}
                     >
                       {tp.accuracy}%
@@ -215,9 +232,9 @@ export default function ResultsPage() {
                       className={styles.tcFill}
                       style={{
                         width: `${tp.accuracy}%`,
-                        background: tp.accuracy >= 70 ? "#059669"
-                                  : tp.accuracy >= 40 ? "#d97706"
-                                  : "#dc2626"
+                        background: tp.accuracy >= 70 ? "#22c55e"
+                                  : tp.accuracy >= 40 ? "#f59e0b"
+                                  : "#ef4444"
                       }}
                     />
                   </div>
@@ -256,11 +273,15 @@ export default function ResultsPage() {
                 const isCorrect  = q.is_correct;
                 const isSkipped  = !q.selected_option;
                 const statusCls  = isCorrect ? styles.qCorrect : isSkipped ? styles.qSkipped : styles.qWrong;
-                const statusText = isCorrect ? "✓ Correct" : isSkipped ? "— Skipped" : "✗ Wrong";
+                const statusText = isCorrect ? "Correct" : isSkipped ? "Skipped" : "Wrong";
 
                 return (
                   <div key={q.question_id} className={`${styles.reviewCard} ${statusCls}`}>
-                    <div className={styles.rcHeader}>
+                    <button
+                      className={styles.rcHeader}
+                      onClick={() => setOpenReview((current) => current === q.question_id ? null : q.question_id)}
+                      aria-expanded={openReview === q.question_id}
+                    >
                       <span className={styles.rcNum}>Q{i + 1}</span>
                       <div className={styles.rcMeta}>
                         <span className={`${styles.rcDiff} ${DIFF_CLASS[q.difficulty] || ""}`}>
@@ -269,47 +290,48 @@ export default function ResultsPage() {
                         <span className={styles.rcTopic}>{q.topic}</span>
                       </div>
                       <span className={`${styles.rcStatus} ${statusCls}`}>{statusText}</span>
-                      <span className={styles.rcMarks} style={{ color: q.marks_awarded > 0 ? "#059669" : "#dc2626" }}>
+                      <span className={styles.rcMarks} style={{ color: q.marks_awarded > 0 ? "#22c55e" : "#ef4444" }}>
                         {q.marks_awarded > 0 ? "+" : ""}{q.marks_awarded}
                       </span>
-                    </div>
+                    </button>
 
-                    {/* Question + Options via smart renderer */}
-                    <div className={styles.reviewRenderer}>
-                      <QuestionRenderer
-                        question={{
-                          question:      q.question_text,
-                          options:       q.options,
-                          type:          q.type || "MCQ",
-                          passage:       q.passage,
-                          passage_title: q.passage_title,
-                          columns:       q.columns,
-                        }}
-                        selectedOption={q.selected_option}
-                        showAnswer={true}
-                        correctOption={q.correct_option}
-                      />
-                    </div>
+                    {openReview === q.question_id && (
+                      <>
+                        <div className={styles.reviewRenderer}>
+                          <QuestionRenderer
+                            question={{
+                              question:      q.question_text,
+                              options:       q.options,
+                              type:          q.type || "MCQ",
+                              passage:       q.passage,
+                              passage_title: q.passage_title,
+                              columns:       q.columns,
+                            }}
+                            selectedOption={q.selected_option}
+                            showAnswer={true}
+                            correctOption={q.correct_option}
+                          />
+                        </div>
 
-                    {/* Explanation */}
-                    {q.explanation && (
-                      <div className={styles.explanation}>
-                        <span className={styles.expLabel}>💡 Explanation</span>
-                        <p className={styles.expText}>{q.explanation}</p>
-                      </div>
+                        {q.explanation && (
+                          <div className={styles.explanation}>
+                            <span className={styles.expLabel}>Explanation</span>
+                            <p className={styles.expText}>{q.explanation}</p>
+                          </div>
+                        )}
+
+                        <div className={styles.rcFooter}>
+                          <span className={styles.rcFootItem}>{fmt(q.time_spent_seconds)}</span>
+                          <span className={styles.rcFootItem}>{q.visit_count} visit{q.visit_count !== 1 ? "s" : ""}</span>
+                          {q.answer_changed_count > 0 && (
+                            <span className={styles.rcFootItem}>Changed {q.answer_changed_count}x</span>
+                          )}
+                          {q.was_marked_for_review && (
+                            <span className={styles.rcFootItem}>Marked for review</span>
+                          )}
+                        </div>
+                      </>
                     )}
-
-                    {/* Time & behavior */}
-                    <div className={styles.rcFooter}>
-                      <span className={styles.rcFootItem}>⏱ {fmt(q.time_spent_seconds)}</span>
-                      <span className={styles.rcFootItem}>👁 {q.visit_count} visit{q.visit_count !== 1 ? "s" : ""}</span>
-                      {q.answer_changed_count > 0 && (
-                        <span className={styles.rcFootItem}>🔄 Changed {q.answer_changed_count}×</span>
-                      )}
-                      {q.was_marked_for_review && (
-                        <span className={styles.rcFootItem}>🔖 Marked for review</span>
-                      )}
-                    </div>
                   </div>
                 );
               })}
@@ -317,6 +339,10 @@ export default function ResultsPage() {
           </div>
         )}
       </main>
+      <div className={styles.bottomCtas}>
+        <button onClick={() => navigate("/mocks")}>Try another paper</button>
+        <button onClick={() => setTab("review")}>Review weak topics</button>
+      </div>
     </div>
   );
 }

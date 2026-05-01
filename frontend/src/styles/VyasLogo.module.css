@@ -1,0 +1,61 @@
+.logo {
+  display: inline-block;
+  flex-shrink: 0;
+  overflow: visible;
+  transform-origin: center;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.logo:hover {
+  transform: scale(1.06);
+  animation: logoGlowPulse 1.4s ease-in-out infinite;
+}
+
+.logoPath {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.animate .logoPath {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  animation: drawPath 450ms ease forwards;
+}
+
+.animate .outerLeft { animation-delay: 0s; }
+.animate .outerRight { animation-delay: 150ms; }
+.animate .innerLeft {
+  animation-duration: 400ms;
+  animation-delay: 400ms;
+}
+.animate .innerRight {
+  animation-duration: 400ms;
+  animation-delay: 550ms;
+}
+.animate .crown {
+  animation-duration: 350ms;
+  animation-delay: 800ms;
+}
+.animate .diamond {
+  opacity: 0;
+  stroke-dashoffset: 0;
+  transform: scale(0.7);
+  animation: diamondReveal 300ms ease forwards;
+  animation-delay: 1100ms;
+}
+
+@keyframes drawPath {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes diamondReveal {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes logoGlowPulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(212, 168, 67, 0.28)); }
+  50% { filter: drop-shadow(0 0 18px rgba(212, 168, 67, 0.48)); }
+}

@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { startAttempt, submitAttempt } from "../api/client";
 import styles from "../styles/TestPage.module.css";
 import QuestionRenderer from "../components/QuestionRenderer";
+import VyasLogo from "../components/VyasLogo";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -15,11 +16,11 @@ const STATUS = {
 };
 
 const STATUS_COLORS = {
-  [STATUS.NOT_VISITED]:     { bg: "#f3f4f6", color: "#6b7280", border: "#e5e7eb" },
-  [STATUS.NOT_ANSWERED]:    { bg: "#fee2e2", color: "#dc2626", border: "#fca5a5" },
-  [STATUS.ANSWERED]:        { bg: "#d1fae5", color: "#059669", border: "#6ee7b7" },
-  [STATUS.MARKED]:          { bg: "#ede9fe", color: "#7c3aed", border: "#c4b5fd" },
-  [STATUS.MARKED_ANSWERED]: { bg: "#dbeafe", color: "#2563eb", border: "#93c5fd" },
+  [STATUS.NOT_VISITED]:     { bg: "#1a1a1a", color: "#9a9080", border: "#2a2a2a" },
+  [STATUS.NOT_ANSWERED]:    { bg: "rgba(239,68,68,0.14)", color: "#fca5a5", border: "rgba(239,68,68,0.35)" },
+  [STATUS.ANSWERED]:        { bg: "rgba(212,168,67,0.16)", color: "#f0c060", border: "rgba(212,168,67,0.55)" },
+  [STATUS.MARKED]:          { bg: "rgba(239,68,68,0.18)", color: "#fecaca", border: "rgba(239,68,68,0.55)" },
+  [STATUS.MARKED_ANSWERED]: { bg: "rgba(212,168,67,0.22)", color: "#f0c060", border: "rgba(212,168,67,0.65)" },
 };
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
@@ -323,9 +324,9 @@ export default function TestPage() {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
                     justifyContent: "center", height: "100vh", gap: 16, padding: 24 }}>
-        <p style={{ color: "#dc2626", fontSize: 15 }}>⚠️ {loadError}</p>
+        <p style={{ color: "var(--danger)", fontSize: 15 }}>{loadError}</p>
         <button
-          style={{ background: "#2563eb", color: "#fff", border: "none",
+          style={{ background: "var(--vyas-gold)", color: "#141006", border: "none",
                    borderRadius: 9, padding: "10px 22px", fontSize: 14, cursor: "pointer" }}
           onClick={() => navigate("/mocks")}
         >
@@ -353,6 +354,9 @@ export default function TestPage() {
   const answered     = qStates.filter((s) => s.selected_option !== null).length;
   const markedReview = qStates.filter((s) => s.was_marked_for_review).length;
   const notVisited   = qStates.filter((s) => s.visit_count === 0).length;
+  const totalDuration = (mockMeta?.duration_minutes || 0) * 60;
+  const timeRatio = totalDuration ? timeLeft / totalDuration : 1;
+  const timerState = timeRatio <= 0.1 ? styles.timerDanger : timeRatio <= 0.25 ? styles.timerWarning : "";
 
   return (
     <div className={styles.page}>
@@ -360,7 +364,7 @@ export default function TestPage() {
       {/* ── Offline banner ───────────────────────────────────────── */}
       {!isOnline && (
         <div className={styles.offlineBanner}>
-          ⚠️ You are offline — your answers are saved locally and the timer continues.
+          You are offline. Your answers are saved locally and the timer continues.
           Reconnect before submitting.
         </div>
       )}
@@ -368,15 +372,15 @@ export default function TestPage() {
       {/* ── Session restored banner ──────────────────────────────── */}
       {recovering && (
         <div className={styles.recoveryBanner}>
-          ✅ Session restored after refresh — your answers and remaining time were saved.
-          <button onClick={() => setRecovering(false)}>✕</button>
+          Session restored after refresh. Your answers and remaining time were saved.
+          <button onClick={() => setRecovering(false)}>x</button>
         </div>
       )}
 
       {/* ── Top bar ──────────────────────────────────────────────── */}
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
-          <span className={styles.topLogo}>VY</span>
+          <VyasLogo variant="gold" size={32} />
           <div>
             <p className={styles.topSubject}>
               {mockMeta?.mock_id?.replace(/_/g, " ").toUpperCase()}
@@ -387,8 +391,7 @@ export default function TestPage() {
           </div>
         </div>
 
-        <div className={`${styles.timer} ${timeWarning ? styles.timerWarning : ""}`}>
-          <span className={styles.timerIcon}>⏱</span>
+        <div className={`${styles.timer} ${timerState}`}>
           {formatTime(timeLeft)}
         </div>
 
@@ -443,7 +446,7 @@ export default function TestPage() {
                 }`}
                 onClick={handleMarkReview}
               >
-                🔖 {currentState.was_marked_for_review ? "Unmark review" : "Mark for review"}
+                {currentState.was_marked_for_review ? "Unmark review" : "Mark for review"}
               </button>
               <button
                 className={`${styles.actionBtn} ${styles.clearBtn}`}
@@ -459,14 +462,14 @@ export default function TestPage() {
                 onClick={() => goToQuestion(currentIdx - 1)}
                 disabled={currentIdx === 0}
               >
-                ← Previous
+                Previous
               </button>
               <button
                 className={`${styles.navBtn} ${styles.nextBtn}`}
                 onClick={() => goToQuestion(currentIdx + 1)}
                 disabled={currentIdx === questions.length - 1}
               >
-                Next →
+                Next
               </button>
             </div>
           </div>
@@ -476,11 +479,11 @@ export default function TestPage() {
         <aside className={`${styles.palette} ${showPalette ? styles.paletteOpen : ""}`}>
           <div className={styles.paletteSummary}>
             {[
-              { label: "Answered",    color: "#059669", count: answered },
-              { label: "Not answered",color: "#dc2626",
+              { label: "Answered",    color: "#d4a843", count: answered },
+              { label: "Not answered",color: "#ef4444",
                 count: qStates.filter(s => s.visit_count > 0 && !s.selected_option).length },
-              { label: "For review",  color: "#7c3aed", count: markedReview },
-              { label: "Not visited", color: "#e5e7eb", count: notVisited },
+              { label: "For review",  color: "#ef4444", count: markedReview },
+              { label: "Not visited", color: "#9a9080", count: notVisited },
             ].map(({ label, color, count }) => (
               <div key={label} className={styles.summaryItem}>
                 <span className={styles.summaryDot} style={{ background: color }} />
@@ -554,7 +557,7 @@ export default function TestPage() {
                 onClick={doSubmit}
                 disabled={submitting}
               >
-                {submitting ? "Submitting…" : "Yes, submit →"}
+                {submitting ? "Submitting..." : "Yes, submit"}
               </button>
             </div>
           </div>

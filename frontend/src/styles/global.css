@@ -1,4 +1,53 @@
-/* ── VYAS Global Styles ───────────────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap");
+
+:root {
+  --vyas-gold: #d4a843;
+  --vyas-gold-light: #f0c060;
+  --vyas-gold-dark: #8a6020;
+  --vyas-blue: #3b82f6;
+  --vyas-navy: #0a0e1a;
+
+  --surface-0: #0a0a0a;
+  --surface-1: #111111;
+  --surface-2: #1a1a1a;
+  --surface-3: #202020;
+  --surface-border: #2a2a2a;
+
+  --text-primary: #f5f0e8;
+  --text-secondary: #9a9080;
+  --text-muted: #6f6659;
+  --text-accent: var(--vyas-gold);
+
+  --success: #22c55e;
+  --success-soft: rgba(34, 197, 94, 0.13);
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.14);
+
+  --font-display: "Cinzel", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-gold: 0 0 20px rgba(212, 168, 67, 0.15);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --glass: rgba(17, 17, 17, 0.78);
+  --glass-border: rgba(212, 168, 67, 0.16);
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -8,26 +57,43 @@
 
 html {
   font-size: 16px;
+  background: var(--surface-0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, Helvetica, Arial, sans-serif;
-  background: #f9fafb;
-  color: #111827;
   min-height: 100vh;
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at 12% -10%, rgba(212, 168, 67, 0.13), transparent 30%),
+    radial-gradient(circle at 86% 2%, rgba(59, 130, 246, 0.1), transparent 28%),
+    var(--surface-0);
+  color: var(--text-primary);
 }
 
 #root { min-height: 100vh; }
 
-/* ── Spinner ─────────────────────────────────────────────────────────────── */
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+button {
+  letter-spacing: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #2563eb;
+  border: 3px solid rgba(212, 168, 67, 0.18);
+  border-top-color: var(--vyas-gold);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -36,24 +102,20 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ── Scrollbar ───────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--surface-0); }
+::-webkit-scrollbar-thumb {
+  background: #3a3329;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: #5a4a30; }
 
-/* ── Focus ring ──────────────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
+  outline: 2px solid var(--vyas-gold);
+  outline-offset: 3px;
 }
 
-/* ── Selection ───────────────────────────────────────────────────────────── */
 ::selection {
-  background: #bfdbfe;
-  color: #1e3a8a;
+  background: rgba(212, 168, 67, 0.32);
+  color: var(--text-primary);
 }
-
-/* ── Utility ─────────────────────────────────────────────────────────────── */
-button { font-family: inherit; }
-a { color: inherit; text-decoration: none; }

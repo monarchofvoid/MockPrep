@@ -2,44 +2,44 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login as apiLogin, signup as apiSignup } from "../api/client";
+import VyasLogo from "../components/VyasLogo";
 import styles from "../styles/Landing.module.css";
 
 const FEATURES = [
   {
-    icon: "⚡",
-    title: "Real Exam Conditions",
-    desc: "Timed sessions, question palette, and mark-for-review — exactly like the actual exam interface.",
+    kicker: "Simulate",
+    title: "Real exam conditions",
+    desc: "Timed papers, structured navigation, review states, and submission discipline built into every attempt.",
   },
   {
-    icon: "📊",
-    title: "Deep Performance Analytics",
-    desc: "Topic-wise accuracy, time distribution per question, and cross-attempt progress trends.",
+    kicker: "Diagnose",
+    title: "Performance intelligence",
+    desc: "Score, accuracy, pace, and topic mastery are tracked across attempts so progress becomes visible.",
   },
   {
-    icon: "🔍",
-    title: "Full Solution Review",
-    desc: "Every question explained — see your selected answer vs. the correct one with full rationale.",
+    kicker: "Review",
+    title: "Clear solution analysis",
+    desc: "Every result opens into question-level review with correct answers, explanations, and behaviour signals.",
   },
   {
-    icon: "🎯",
-    title: "Targeted Improvement",
-    desc: "VYAS surfaces your weakest topics so you know exactly where to focus next.",
+    kicker: "Ascend",
+    title: "Focused improvement",
+    desc: "Weak areas surface naturally, helping learners spend their next session where it matters most.",
   },
 ];
 
-const EXAMS = ["GATE", "CUET", "CAT", "JEE", "UPSC"];
+const EXAMS = ["CUET", "GATE", "CAT", "JEE", "UPSC"];
 
 export default function LandingPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
 
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [tab, setTab]               = useState("login"); // "login" | "signup"
-  const [formData, setFormData]     = useState({ name: "", email: "", password: "" });
-  const [error, setError]           = useState("");
-  const [loading, setLoading]       = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tab, setTab] = useState("login");
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // If already authenticated, send to dashboard
   useEffect(() => {
     if (user) navigate("/dashboard", { replace: true });
   }, [user, navigate]);
@@ -66,22 +66,21 @@ export default function LandingPage() {
     setLoading(true);
 
     try {
-      let payload;
-      if (tab === "login") {
-        payload = await apiLogin(formData.email, formData.password);
-      } else {
-        if (!formData.name.trim()) {
-          setError("Please enter your full name.");
-          setLoading(false);
-          return;
-        }
-        if (formData.password.length < 6) {
-          setError("Password must be at least 6 characters.");
-          setLoading(false);
-          return;
-        }
-        payload = await apiSignup(formData.name, formData.email, formData.password);
+      if (tab === "signup" && !formData.name.trim()) {
+        setError("Please enter your full name.");
+        setLoading(false);
+        return;
       }
+      if (tab === "signup" && formData.password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        setLoading(false);
+        return;
+      }
+
+      const payload = tab === "login"
+        ? await apiLogin(formData.email, formData.password)
+        : await apiSignup(formData.name.trim(), formData.email, formData.password);
+
       login(payload);
       navigate("/dashboard");
     } catch (err) {
@@ -93,11 +92,10 @@ export default function LandingPage() {
 
   return (
     <div className={styles.page}>
-      {/* ── Navbar ─────────────────────────────────────────────── */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.brand}>
-            <span className={styles.logo}>VY</span>
+            <VyasLogo variant="gold" size={36} />
             <span className={styles.brandName}>VYAS</span>
           </div>
           <div className={styles.headerActions}>
@@ -111,127 +109,85 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* ── Hero ───────────────────────────────────────────────── */}
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.examPills}>
-            {EXAMS.map((e) => (
-              <span key={e} className={styles.examPill}>{e}</span>
-            ))}
+      <main>
+        <section className={styles.hero}>
+          <div className={styles.heroInner}>
+            <VyasLogo variant="gold" size={120} animate className={styles.heroLogo} />
+            <h1 className={styles.heroTitle}>Ascend with Intelligence</h1>
+            <p className={styles.heroSub}>
+              VYAS brings disciplined mock practice, precise analytics, and elegant review workflows into one aspirational learning platform.
+            </p>
+            <div className={styles.examPills}>
+              {EXAMS.map((exam) => (
+                <span key={exam} className={styles.examPill}>{exam}</span>
+              ))}
+            </div>
+            <div className={styles.heroCtas}>
+              <button className={styles.primaryCta} onClick={() => openModal("signup")}>
+                Start practising free →
+              </button>
+              <button className={styles.secondaryCta} onClick={() => openModal("login")}>
+                Continue ascent
+              </button>
+            </div>
           </div>
-          <h1 className={styles.heroTitle}>
-            Virtual Yield<br />
-            <span className={styles.heroAccent}>Assessment System</span>
-          </h1>
-          <p className={styles.heroSub}>
-            Practice competitive exam papers in a real exam environment.
-            Track your progress, identify weak areas, and improve with every attempt.
-          </p>
-          <div className={styles.heroCtas}>
-            <button className={styles.primaryCta} onClick={() => openModal("signup")}>
-              Start practising free →
-            </button>
-            <button className={styles.secondaryCta} onClick={() => openModal("login")}>
-              Sign in
-            </button>
-          </div>
-        </div>
+        </section>
 
-        {/* Hero illustration — abstract score card */}
-        <div className={styles.heroCard} aria-hidden="true">
-          <div className={styles.hcHeader}>
-            <span className={styles.hcDot} style={{ background: "#ef4444" }} />
-            <span className={styles.hcDot} style={{ background: "#f59e0b" }} />
-            <span className={styles.hcDot} style={{ background: "#10b981" }} />
-            <span className={styles.hcTitle}>GATE · DBMS PYQ 2021</span>
-          </div>
-          <div className={styles.hcBody}>
-            <div className={styles.hcScore}>
-              <svg width="90" height="90" viewBox="0 0 90 90">
-                <circle cx="45" cy="45" r="36" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                <circle
-                  cx="45" cy="45" r="36" fill="none" stroke="#2563eb" strokeWidth="8"
-                  strokeDasharray="226" strokeDashoffset="68"
-                  strokeLinecap="round" transform="rotate(-90 45 45)"
-                />
-                <text x="45" y="49" textAnchor="middle" fontSize="16" fontWeight="700" fill="#0f1e3d">70%</text>
-              </svg>
+        <section className={styles.features}>
+          <div className={styles.featuresInner}>
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionKicker}>Practice system</span>
+              <h2 className={styles.sectionTitle}>Built for deliberate preparation</h2>
             </div>
-            <div className={styles.hcStats}>
-              <div className={styles.hcStat}><span className={styles.hcVal} style={{ color: "#059669" }}>7</span><span className={styles.hcLbl}>Correct</span></div>
-              <div className={styles.hcStat}><span className={styles.hcVal} style={{ color: "#dc2626" }}>2</span><span className={styles.hcLbl}>Wrong</span></div>
-              <div className={styles.hcStat}><span className={styles.hcVal} style={{ color: "#6b7280" }}>1</span><span className={styles.hcLbl}>Skipped</span></div>
-            </div>
-            <div className={styles.hcTopics}>
-              {[
-                { topic: "SQL Queries", pct: 90 },
-                { topic: "Normalisation", pct: 60 },
-                { topic: "Transactions", pct: 50 },
-              ].map(({ topic, pct }) => (
-                <div key={topic} className={styles.hcTopicRow}>
-                  <span className={styles.hcTopicName}>{topic}</span>
-                  <div className={styles.hcBar}>
-                    <div className={styles.hcBarFill} style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className={styles.hcTopicPct}>{pct}%</span>
-                </div>
+            <div className={styles.featureGrid}>
+              {FEATURES.map((feature) => (
+                <article key={feature.title} className={styles.featureCard}>
+                  <span className={styles.featureKicker}>{feature.kicker}</span>
+                  <h3 className={styles.featureTitle}>{feature.title}</h3>
+                  <p className={styles.featureDesc}>{feature.desc}</p>
+                </article>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Features ───────────────────────────────────────────── */}
-      <section className={styles.features}>
-        <div className={styles.featuresInner}>
-          <h2 className={styles.sectionTitle}>Everything you need to perform better</h2>
-          <div className={styles.featureGrid}>
-            {FEATURES.map((f) => (
-              <div key={f.title} className={styles.featureCard}>
-                <div className={styles.featureIcon}>{f.icon}</div>
-                <h3 className={styles.featureTitle}>{f.title}</h3>
-                <p className={styles.featureDesc}>{f.desc}</p>
-              </div>
-            ))}
+        <section className={styles.statsBar}>
+          <span>10 papers</span>
+          <span>700+ questions</span>
+          <span>Real exam conditions</span>
+        </section>
+
+        <section className={styles.ctaBanner}>
+          <div className={styles.ctaInner}>
+            <h2 className={styles.ctaTitle}>Train with clarity. Rise with discipline.</h2>
+            <button className={styles.ctaBtn} onClick={() => openModal("signup")}>
+              Start practising free →
+            </button>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
-      {/* ── CTA Banner ─────────────────────────────────────────── */}
-      <section className={styles.ctaBanner}>
-        <div className={styles.ctaInner}>
-          <h2 className={styles.ctaTitle}>Ready to start practising?</h2>
-          <p className={styles.ctaSub}>Free. No credit card. Just real exam practice.</p>
-          <button className={styles.ctaBtn} onClick={() => openModal("signup")}>
-            Create your account →
-          </button>
-        </div>
-      </section>
-
-      {/* ── Footer ─────────────────────────────────────────────── */}
       <footer className={styles.footer}>
-        <span className={styles.footerLogo}>VY</span>
-        <span className={styles.footerText}>VYAS — Virtual Yield Assessment System</span>
+        <VyasLogo variant="gold" size={34} />
+        <div>
+          <span className={styles.footerBrand}>VYAS</span>
+          <span className={styles.footerText}>Intelligence · Discipline · Ascent</span>
+        </div>
       </footer>
 
-      {/* ── Auth Modal ─────────────────────────────────────────── */}
       {modalOpen && (
         <div className={styles.overlay} onClick={closeModal}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            {/* Modal header */}
             <div className={styles.modalHeader}>
-              <div className={styles.modalLogo}>VY</div>
-              <button
-                className={styles.modalClose}
-                onClick={closeModal}
-                aria-label="Close"
-                disabled={loading}
-              >
-                ✕
+              <div className={styles.modalBrand}>
+                <VyasLogo variant="gold" size={40} />
+                <span>VYAS</span>
+              </div>
+              <button className={styles.modalClose} onClick={closeModal} disabled={loading} aria-label="Close">
+                x
               </button>
             </div>
 
-            {/* Tab switcher */}
             <div className={styles.tabs}>
               <button
                 className={`${styles.tabBtn} ${tab === "login" ? styles.activeTab : ""}`}
@@ -249,7 +205,6 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* Form */}
             <form className={styles.form} onSubmit={handleSubmit} noValidate>
               {tab === "signup" && (
                 <div className={styles.field}>
@@ -258,7 +213,7 @@ export default function LandingPage() {
                     id="name"
                     name="name"
                     type="text"
-                    placeholder="Arjun Sharma"
+                    placeholder="Aditi Sharma"
                     className={styles.input}
                     value={formData.name}
                     onChange={handleChange}
@@ -303,27 +258,19 @@ export default function LandingPage() {
 
               {error && <p className={styles.formError}>{error}</p>}
 
-              <button
-                type="submit"
-                className={styles.submitBtn}
-                disabled={loading}
-              >
-                {loading
-                  ? "Please wait…"
-                  : tab === "login"
-                  ? "Sign in →"
-                  : "Create account →"}
+              <button type="submit" className={styles.submitBtn} disabled={loading}>
+                {loading ? "Please wait..." : tab === "login" ? "Sign in →" : "Create account →"}
               </button>
             </form>
 
             <p className={styles.switchText}>
-              {tab === "login" ? "Don't have an account? " : "Already have an account? "}
+              {tab === "login" ? "No account yet? " : "Already registered? "}
               <button
                 className={styles.switchLink}
                 onClick={() => { setTab(tab === "login" ? "signup" : "login"); setError(""); }}
                 disabled={loading}
               >
-                {tab === "login" ? "Sign up" : "Sign in"}
+                {tab === "login" ? "Create one" : "Sign in"}
               </button>
             </p>
           </div>

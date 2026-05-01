@@ -1,65 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMocks, startAttempt } from "../api/client";
 import Navbar from "../components/Navbar";
 import styles from "../styles/MockBrowser.module.css";
 
-const SUBJECT_ICONS = {
-  "Database Management Systems": "🗄️",
-  "Operating Systems": "💻",
-  "Computer Networks": "🌐",
-  "Data Structures": "🌳",
-  "Algorithms": "⚙️",
-  "default": "📄",
-};
-
-function getIcon(subject) {
-  return SUBJECT_ICONS[subject] || SUBJECT_ICONS.default;
+function inferDifficulty(mock) {
+  if (mock.question_count >= 80) return "Advanced";
+  if (mock.question_count >= 40) return "Standard";
+  return "Focused";
 }
 
 function MockCard({ mock, onStart, starting }) {
   return (
-    <div className={styles.card}>
+    <article className={styles.card}>
       <div className={styles.cardHeader}>
-        <span className={styles.cardIcon}>{getIcon(mock.subject)}</span>
         <span className={styles.examBadge}>{mock.exam}</span>
+        <span className={styles.difficulty}>{inferDifficulty(mock)}</span>
       </div>
       <h3 className={styles.cardTitle}>{mock.subject}</h3>
-      <p className={styles.cardYear}>{mock.year}</p>
+      <p className={styles.cardYear}>{mock.year || "Practice paper"}</p>
       <div className={styles.cardMeta}>
-        <span className={styles.metaItem}>
-          <span className={styles.metaIcon}>⏱</span>
-          {mock.duration_minutes} min
-        </span>
-        <span className={styles.metaDivider} />
-        <span className={styles.metaItem}>
-          <span className={styles.metaIcon}>📝</span>
-          {mock.question_count} questions
-        </span>
-        <span className={styles.metaDivider} />
-        <span className={styles.metaItem}>
-          <span className={styles.metaIcon}>⭐</span>
-          {mock.total_marks} marks
-        </span>
+        <div><span>Questions</span><strong>{mock.question_count}</strong></div>
+        <div><span>Duration</span><strong>{mock.duration_minutes}m</strong></div>
+        <div><span>Marks</span><strong>{mock.total_marks}</strong></div>
       </div>
-      <button
-        className={styles.startBtn}
-        onClick={() => onStart(mock.id)}
-        disabled={starting === mock.id}
-      >
-        {starting === mock.id ? "Starting…" : "Start test →"}
+      <button className={styles.startBtn} onClick={() => onStart(mock.id)} disabled={starting === mock.id}>
+        {starting === mock.id ? "Starting..." : "Start test →"}
       </button>
-    </div>
+    </article>
   );
 }
 
 export default function MockBrowser() {
-  const navigate  = useNavigate();
-  const [mocks,    setMocks]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState("");
-  const [starting, setStarting] = useState(null); // mock_id currently being started
-  const [filter,   setFilter]   = useState("");
+  const navigate = useNavigate();
+  const [mocks, setMocks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [starting, setStarting] = useState(null);
+  const [query, setQuery] = useState("");
+  const [examFilter, setExamFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
 
   useEffect(() => {
     let mounted = true;
@@ -87,86 +67,80 @@ export default function MockBrowser() {
     }
   };
 
-  const filtered = mocks.filter((m) => {
-    const q = filter.toLowerCase();
-    return (
-      !q ||
-      m.subject.toLowerCase().includes(q) ||
-      m.year.toLowerCase().includes(q) ||
-      m.exam.toLowerCase().includes(q)
-    );
+  const exams = useMemo(() => ["all", ...Array.from(new Set(mocks.map((m) => m.exam))).sort()], [mocks]);
+  const years = useMemo(() => ["all", ...Array.from(new Set(mocks.map((m) => m.year).filter(Boolean))).sort()], [mocks]);
+
+  const filtered = mocks.filter((mock) => {
+    const q = query.toLowerCase();
+    const matchesQuery = !q ||
+      mock.subject.toLowerCase().includes(q) ||
+      mock.year.toLowerCase().includes(q) ||
+      mock.exam.toLowerCase().includes(q);
+    const matchesExam = examFilter === "all" || mock.exam === examFilter;
+    const matchesYear = yearFilter === "all" || mock.year === yearFilter;
+    return matchesQuery && matchesExam && matchesYear;
   });
 
   return (
     <div className={styles.page}>
       <Navbar />
       <main className={styles.main}>
-        <div className={styles.pageHeader}>
-          <div>
-            <h1 className={styles.pageTitle}>Mock Test Library</h1>
-            <p className={styles.pageSub}>
-              Choose a paper and start practising. Results saved automatically.
-            </p>
-          </div>
-        </div>
+        <section className={styles.pageHeader}>
+          <span className={styles.kicker}>Mock library</span>
+          <h1 className={styles.pageTitle}>Choose your next ascent</h1>
+          <p className={styles.pageSub}>Filter papers by exam and year, then enter a timed practice environment.</p>
+        </section>
 
-        {/* Search */}
-        <div className={styles.searchBar}>
-          <span className={styles.searchIcon}>🔍</span>
+        <section className={styles.filters}>
           <input
             type="text"
-            placeholder="Search by subject, exam, or year…"
+            placeholder="Search subject, exam, or year"
             className={styles.searchInput}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
-          {filter && (
-            <button className={styles.clearSearch} onClick={() => setFilter("")}>✕</button>
-          )}
-        </div>
+          <select className={styles.select} value={examFilter} onChange={(e) => setExamFilter(e.target.value)}>
+            {exams.map((exam) => (
+              <option key={exam} value={exam}>{exam === "all" ? "All exams" : exam}</option>
+            ))}
+          </select>
+          <select className={styles.select} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+            {years.map((year) => (
+              <option key={year} value={year}>{year === "all" ? "All years" : year}</option>
+            ))}
+          </select>
+        </section>
 
-        {/* Error */}
         {error && (
           <div className={styles.errorBox}>
-            ⚠️ {error}
+            <span>{error}</span>
             <button onClick={() => { setError(""); window.location.reload(); }}>Retry</button>
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className={styles.center}>
             <div className="spinner" />
-            <p className={styles.loadingText}>Loading papers…</p>
+            <p className={styles.loadingText}>Loading papers...</p>
           </div>
         )}
 
-        {/* Grid */}
         {!loading && !error && (
           <>
+            <p className={styles.resultCount}>{filtered.length} paper{filtered.length !== 1 ? "s" : ""} available</p>
             {filtered.length === 0 ? (
               <div className={styles.emptyState}>
-                <p>No papers found matching "{filter}"</p>
-                <button className={styles.clearBtn} onClick={() => setFilter("")}>
-                  Clear search
+                <p>No papers match the current filters.</p>
+                <button className={styles.clearBtn} onClick={() => { setQuery(""); setExamFilter("all"); setYearFilter("all"); }}>
+                  Reset filters
                 </button>
               </div>
             ) : (
-              <>
-                <p className={styles.resultCount}>
-                  {filtered.length} paper{filtered.length !== 1 ? "s" : ""} available
-                </p>
-                <div className={styles.grid}>
-                  {filtered.map((m) => (
-                    <MockCard
-                      key={m.id}
-                      mock={m}
-                      onStart={handleStart}
-                      starting={starting}
-                    />
-                  ))}
-                </div>
-              </>
+              <div className={styles.grid}>
+                {filtered.map((mock) => (
+                  <MockCard key={mock.id} mock={mock} onStart={handleStart} starting={starting} />
+                ))}
+              </div>
             )}
           </>
         )}

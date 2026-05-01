@@ -372,12 +372,7 @@ def submit_attempt(
             schemas.TopicPerformance(**tp) for tp in result["topic_performance"]
         ],
         question_reviews=[
-            schemas.QuestionReview(
-                question_id=qr["question_id"],
-                question_text=qr["question_text"],
-                passage=qr.get("passage"),
-                passage_title=qr.get("passage_title"),
-            )
+            schemas.QuestionReview(**qr)
             for qr in result["question_reviews"]
         ],
     )
@@ -422,6 +417,7 @@ def get_results(
                 question_text=q.get("question", ""),
                 passage=q.get("passage"),
                 passage_title=q.get("passage_title"),
+                options=q.get("options", {}),
                 selected_option=resp.selected_option,
                 correct_option=q.get("correct", ""),
                 is_correct=resp.is_correct or False,
