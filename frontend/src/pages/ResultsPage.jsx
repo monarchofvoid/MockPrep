@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getResults } from "../api/client";
 import Navbar from "../components/Navbar";
 import styles from "../styles/ResultsPage.module.css";
+import QuestionRenderer from "../components/QuestionRenderer";
 
 function ScoreRing({ pct }) {
   const r = 54;
@@ -273,30 +274,20 @@ export default function ResultsPage() {
                       </span>
                     </div>
 
-                    <p className={styles.rcQuestion}>{q.question_text}</p>
-
-                    {/* Options */}
-                    <div className={styles.rcOptions}>
-                      {Object.entries(q.options).map(([key, val]) => {
-                        const isSelected = q.selected_option === key;
-                        const isCorrectOpt = q.correct_option === key;
-                        let optClass = styles.rcOpt;
-                        if (isCorrectOpt) optClass += ` ${styles.rcOptCorrect}`;
-                        else if (isSelected && !isCorrectOpt) optClass += ` ${styles.rcOptWrong}`;
-
-                        return (
-                          <div key={key} className={optClass}>
-                            <span className={styles.rcOptKey}>{key}</span>
-                            <span className={styles.rcOptVal}>{val}</span>
-                            {isSelected && !isCorrectOpt && (
-                              <span className={styles.rcOptTag} style={{ color: "#dc2626" }}>Your answer</span>
-                            )}
-                            {isCorrectOpt && (
-                              <span className={styles.rcOptTag} style={{ color: "#059669" }}>Correct</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                    {/* Question + Options via smart renderer */}
+                    <div className={styles.reviewRenderer}>
+                      <QuestionRenderer
+                        question={{
+                          question: q.question_text,
+                          options:  q.options,
+                          type:     q.type || "MCQ",
+                          passage:  q.passage,
+                          columns:  q.columns,
+                        }}
+                        selectedOption={q.selected_option}
+                        showAnswer={true}
+                        correctOption={q.correct_option}
+                      />
                     </div>
 
                     {/* Explanation */}

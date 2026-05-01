@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { startAttempt, submitAttempt } from "../api/client";
 import styles from "../styles/TestPage.module.css";
+import QuestionRenderer from "../components/QuestionRenderer";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -427,25 +428,11 @@ export default function TestPage() {
             </div>
           </div>
 
-          <div className={styles.qText}>{currentQ.question}</div>
-
-          <div className={styles.options}>
-            {Object.entries(currentQ.options).map(([key, val]) => {
-              const selected = currentState.selected_option === key;
-              return (
-                <button
-                  key={key}
-                  className={`${styles.option} ${selected ? styles.selectedOption : ""}`}
-                  onClick={() => handleSelect(key)}
-                >
-                  <span className={`${styles.optKey} ${selected ? styles.optKeySelected : ""}`}>
-                    {key}
-                  </span>
-                  <span className={styles.optVal}>{val}</span>
-                </button>
-              );
-            })}
-          </div>
+          <QuestionRenderer
+            question={currentQ}
+            selectedOption={currentState.selected_option}
+            onSelect={handleSelect}
+          />
 
           <div className={styles.actionBar}>
             <div className={styles.actionLeft}>

@@ -210,13 +210,7 @@
   font-weight: 500;
 }
 
-/* Options */
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 28px;
-}
+/* (moved to QuestionRenderer.module.css) */
 
 .option {
   display: flex;

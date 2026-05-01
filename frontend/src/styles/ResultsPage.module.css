@@ -353,3 +353,10 @@
   .topicGrid { grid-template-columns: 1fr; }
   .main { padding: 24px 16px 60px; }
 }
+
+/* QuestionRenderer wrapper inside review cards */
+.reviewRenderer {
+  margin-bottom: 12px;
+}
+/* Override option cursor in results view (already disabled via showAnswer) */
+.reviewRenderer button { cursor: default; }

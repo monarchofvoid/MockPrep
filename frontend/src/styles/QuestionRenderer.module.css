@@ -1,0 +1,323 @@
+/* ── QuestionRenderer styles ─────────────────────────────────────────────── */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Format badge */
+.formatBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+  width: fit-content;
+  letter-spacing: 0.2px;
+}
+
+.formatBadge[data-format="passage"]   { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.formatBadge[data-format="match"]     { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.formatBadge[data-format="statement"] { background: #fdf4ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+.formatBadge[data-format="code"]      { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+.formatBadge[data-format="nat"]       { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+
+/* Question body */
+.questionBody {
+  margin-bottom: 24px;
+}
+
+/* ── Standard question text ──────────────────────────────────────────────── */
+.questionText {
+  font-size: 16px;
+  color: #111827;
+  line-height: 1.75;
+  font-weight: 500;
+}
+
+/* ── Passage ─────────────────────────────────────────────────────────────── */
+.passageBox {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-left: 4px solid #2563eb;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.passageLabel {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #2563eb;
+  margin-bottom: 12px;
+}
+
+.passageText {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.8;
+  font-style: italic;
+}
+
+/* ── Match the Following ─────────────────────────────────────────────────── */
+.matchTable {
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.matchColumn {
+  flex: 1;
+  padding: 0;
+}
+
+.matchColumnHeader {
+  background: #f1f5f9;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1.5px solid #e5e7eb;
+}
+
+.matchDivider {
+  width: 1.5px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.matchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #111827;
+  line-height: 1.5;
+}
+
+.matchRow:last-child { border-bottom: none; }
+
+.matchKey {
+  font-weight: 800;
+  color: #1e3a8a;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.matchValue {
+  color: #374151;
+  flex: 1;
+}
+
+/* Match option in A/B/C/D choices */
+.matchOptionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.matchOptionPair {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+}
+
+.matchOptLeft  { font-weight: 700; color: #1e3a8a; }
+.matchOptArrow { color: #9ca3af; font-size: 12px; }
+.matchOptRight { color: #374151; }
+
+/* ── Statement / Assertion-Reason ────────────────────────────────────────── */
+.statementBox {
+  background: #fdf4ff;
+  border: 1.5px solid #e9d5ff;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statementRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.statementLabel {
+  font-weight: 800;
+  color: #7e22ce;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statementText {
+  color: #374151;
+  flex: 1;
+}
+
+.statementQuestion {
+  font-size: 15px;
+  color: #111827;
+  font-weight: 500;
+  line-height: 1.65;
+  padding-top: 4px;
+}
+
+/* ── Code / Technical ────────────────────────────────────────────────────── */
+.codeBlock {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid #1e293b;
+}
+
+.inlineCode {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── NAT ─────────────────────────────────────────────────────────────────── */
+.natBadge {
+  display: inline-block;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ── Options ─────────────────────────────────────────────────────────────── */
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.option:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+/* Selected (during test) */
+.optionSelected {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* Correct answer (results view) */
+.optionCorrect {
+  border-color: #6ee7b7 !important;
+  background: #ecfdf5 !important;
+}
+
+/* Wrong answer chosen (results view) */
+.optionWrong {
+  border-color: #fca5a5 !important;
+  background: #fef2f2 !important;
+}
+
+/* Option key badge */
+.optKey {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  border: 1.5px solid #e5e7eb;
+  transition: all 0.15s;
+}
+
+.optKeySelected { background: #2563eb !important; color: #fff !important; border-color: #2563eb !important; }
+.optKeyCorrect  { background: #059669 !important; color: #fff !important; border-color: #059669 !important; }
+.optKeyWrong    { background: #dc2626 !important; color: #fff !important; border-color: #dc2626 !important; }
+
+.optVal {
+  font-size: 14px;
+  color: #111827;
+  line-height: 1.55;
+  padding-top: 4px;
+  flex: 1;
+}
+
+/* Correct / wrong tag */
+.optTag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  padding-top: 6px;
+  white-space: nowrap;
+}
+
+.optTag[data-tag="correct"] { color: #059669; }
+.optTag[data-tag="wrong"]   { color: #dc2626; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .questionText { font-size: 15px; }
+  .matchTable   { flex-direction: column; }
+  .matchDivider { width: 100%; height: 1.5px; }
+  .option       { padding: 12px 14px; gap: 10px; }
+  .optKey       { width: 26px; height: 26px; font-size: 12px; }
+  .optVal       { font-size: 13px; }
+}
