@@ -1,0 +1,485 @@
+{
+  "exam": "CUET (UG)",
+  "subject": "English",
+  "year": "2022",
+  "date": "19th July 2022 - Slot 1",
+  "duration": 15,
+  "total_questions": 15,
+  "questions_to_attempt": 15,
+  "total_marks": 75,
+  "negative_marking_default": 1,
+  "instructions": [
+    "The test is of 15 minute duration.",
+    "The test contains 15 Questions out of which 15 questions need to be attempted.",
+    "Correct answer or the most appropriate answer: Five marks (+5).",
+    "Any incorrect option marked will be given minus one mark (-1).",
+    "Unanswered/Marked for Review will be given no mark (0)."
+  ],
+  "sections": [
+    {
+      "section_id": 1,
+      "section_name": "Reading Comprehension - Passage 1 (Plastic Waste and Gasification)",
+      "question_range": "1-6"
+    },
+    {
+      "section_id": 2,
+      "section_name": "Reading Comprehension - Passage 2 (Spiritual Training of Boys)",
+      "question_range": "7-12"
+    },
+    {
+      "section_id": 3,
+      "section_name": "Reading Comprehension - Passage 3 (First Job)",
+      "question_range": "13-15"
+    }
+  ],
+  "passages": [
+    {
+      "passage_id": 1,
+      "passage_title": "Plastic Waste, PVC and Gasification",
+      "passage": "When plastic waste is burnt, a complex weave of toxic chemicals is released. Breaking down Poly Vinyl Chloride, (PVC) is used for packaging, toys and coating electrical wires. It produces dioxin, an organ chlorine which belongs to the family of Persistent Organic Pollutants (POPs). A recent Dioxin Assessment Report brought out by the United States Environment Protection Agency (USEPA) says the risk of getting cancer from dioxin is ten times higher than reported by the agency in 1994. Yet the Delhi government is giving the green signal to a gasification project which will convert garbage into energy without removing plastic waste. Former minister, the promoter of this project, says this is not necessary. He claims no air pollution will be caused and that the ash produced can be used as manure. An earlier waste-to-energy project set-up in Timarpur failed. The new one, built with Australian assistance, will cost 200 crore. It will generate 25 megawatts of power and gobble 1,000 tonnes of garbage every day. \"Technologies like gasification are a form of incineration,\" says the central coordinator of this Project. Incineration merely transfers hazardous waste from solid form to air, water and ash. Toxins produced during incineration include acidic gases, heavy metals as well as dioxins and furans. \"The 'manure' will be hazardous and a problem to dispose.\""
+    },
+    {
+      "passage_id": 2,
+      "passage_title": "Spiritual Training of Boys",
+      "passage": "The spiritual training of the boys was a much more difficult matter than their physical and mental training. I relied little on religious books for the training of the spirit. Of course, I believed that every student should be acquainted with the elements of his own religion and have a general knowledge of his own scriptures and therefore I provided for such knowledge as best I could. But that, to my mind, was part of the intellectual training. Long before I undertook the education of the youngsters of Tolstoy Farm, I had realized that the training of the spirit was a thing by itself. To develop the spirit is to build character and to enable one to work towards a knowledge of God and self-realization And I held that this was an essential part of the training of the young, and that all training without culture of the spirit was of no use and might be even harmful.\n\nI am familiar with the superstition that self-realization is possible only in the fourth stage of life, i.e., sannyasa (renunciation). But it is matter of common knowledge that those who defer preparation for this invaluable experience until the last stage of life attain not self-realization but old age amounting to a second and pitiable childhood, living as a burden on this earth. I have a full recollection that I held these views even whilst I was teaching though I might not then have expressed them in identical language."
+    },
+    {
+      "passage_id": 3,
+      "passage_title": "Everyone's First Job",
+      "passage": "Everyone's first job is special. There are a couple of reasons for this: experience is burned in one's memory, it gives you the practice needed to fulfil other positions, and it teaches you about the value of money. Of course we do jobs around the house when we are young, like cleaning dishes, vacuuming, and doing laundry, but working for others for money gives off a different feeling.\n\nWhen I was about sixteen years old, I wanted to buy albums of my favourite bands, but I did not have any money. My parents were not the type of people to give money to me out of nowhere, or even for work done at home. I had to find work in order to purchase the music I wanted.\n\nSo, I enquired as to who could give me work around town. I lived in the town of Wood Way, which was relatively small, with no street lights, and hardly any population. I went to the oldest person I knew in my neighbourhood, Mrs. Hudson. She was over eighty years old, and could not tend her garden anymore. She had flowers, a grass lawn, and some tomato plants. I knocked on her door, building up enough courage to ask her for work. She answered that indeed she needed help in her garden. She did not discuss the amount of money, I would get for the work.\n\nThe first job supplies you with the value of money, as sweat turned into cash is something no one can take away from you."
+    }
+  ],
+  "questions": [
+    {
+      "id": 51,
+      "question_number": 1,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "What is released when plastics are burnt?",
+      "options": {
+        "A": "power and proteins",
+        "B": "toxic chemicals",
+        "C": "fruits",
+        "D": "vegetables"
+      },
+      "correct": "B",
+      "correct_option_text": "toxic chemicals",
+      "explanation": "The passage clearly states that when plastic waste is burnt, a complex weave of toxic chemicals is released.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "environment"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 52,
+      "question_number": 2,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "What is PVC?",
+      "options": {
+        "A": "Polynominals",
+        "B": "Polyvinyl chloride",
+        "C": "Polyamine chloride",
+        "D": "Poly electricity"
+      },
+      "correct": "B",
+      "correct_option_text": "Polyvinyl chloride",
+      "explanation": "The passage states that PVC stands for Poly Vinyl Chloride, which is used for packaging, toys and coating electrical wires.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "environment",
+        "abbreviations"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 53,
+      "question_number": 3,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "The full form of USEPA is _____________.",
+      "options": {
+        "A": "United States Protection Ace",
+        "B": "United States Environment Agency",
+        "C": "United States Environment Protection Agency",
+        "D": "United States Environment Protect Age"
+      },
+      "correct": "C",
+      "correct_option_text": "United States Environment Protection Agency",
+      "explanation": "The passage explicitly mentions that USEPA stands for the United States Environment Protection Agency.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "abbreviations"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 54,
+      "question_number": 4,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "The risk of getting cancer from Dioxin is:",
+      "options": {
+        "A": "four times higher",
+        "B": "ten times higher",
+        "C": "ten times less",
+        "D": "twenty times less"
+      },
+      "correct": "B",
+      "correct_option_text": "ten times higher",
+      "explanation": "According to the Dioxin Assessment Report cited in the passage, the risk of getting cancer from dioxin is ten times higher than reported by the USEPA in 1994.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "environment"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 55,
+      "question_number": 5,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "Technologies like gasification are a form of",
+      "options": {
+        "A": "Curating artifacts",
+        "B": "Organic farming",
+        "C": "Incineration",
+        "D": "Deforestation"
+      },
+      "correct": "C",
+      "correct_option_text": "Incineration",
+      "explanation": "The passage states: 'Technologies like gasification are a form of incineration,' says the central coordinator of this Project.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "environment"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 56,
+      "question_number": 6,
+      "type": "match",
+      "parent_passage_id": 1,
+      "question": "Match List-I with List-II\n\nList-I:\nA. PVC is used for packaging\nB. United States environment protection\nC. Australian assistance\nD. Waste-to-energy project set-up failed\n\nList-II:\n(I) Toys and coating electrical wire\n(II) Brought out an assessment report agency\n(III) 200 crore\n(IV) at Timarpur",
+      "options": {
+        "A": "(A) - (IV), (B) - (III), (C) - (II), (D) - (I)",
+        "B": "(A) - (I), (B) - (IV), (C) - (II), (D) - (III)",
+        "C": "(A) - (I), (B) - (II), (C) - (III), (D) - (IV)",
+        "D": "(A) - (III), (B) - (IV), (C) - (I), (D) - (II)"
+      },
+      "correct": "C",
+      "correct_option_text": "(A) - (I), (B) - (II), (C) - (III), (D) - (IV)",
+      "pairs": {
+        "A": "I",
+        "B": "II",
+        "C": "III",
+        "D": "IV"
+      },
+      "explanation": "PVC is used for packaging, toys and coating electrical wire (A-I). The United States Environment Protection Agency brought out a Dioxin Assessment Report (B-II). Australian assistance will cost 200 crore (C-III). An earlier waste-to-energy project set-up in Timarpur failed (D-IV).",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "matching",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 57,
+      "question_number": 7,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "The passage discusses",
+      "options": {
+        "A": "how to attain brain power",
+        "B": "spiritual training of boys",
+        "C": "Spiritual training of robots",
+        "D": "How to develop language skills"
+      },
+      "correct": "B",
+      "correct_option_text": "spiritual training of boys",
+      "explanation": "The passage is entirely about the spiritual training of boys at Tolstoy Farm and its importance compared to physical and mental training.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Main Topic",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "main-topic",
+        "spiritual-training"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 58,
+      "question_number": 8,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "A suitable title for the passage could be:",
+      "options": {
+        "A": "Spiritual Training of Developing countries",
+        "B": "Self realisation and Moksha",
+        "C": "Importance of Spiritual Training",
+        "D": "Life and character of a Film maker"
+      },
+      "correct": "C",
+      "correct_option_text": "Importance of Spiritual Training",
+      "explanation": "The passage discusses why spiritual training is important and more difficult than physical and mental training. 'Importance of Spiritual Training' best captures the passage's main theme.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Title / Main Theme",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "title",
+        "main-theme"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 59,
+      "question_number": 9,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "Training of the spirit means:",
+      "options": {
+        "A": "To build character and to enable one to work towards a knowledge of God and self-realization.",
+        "B": "Being acquainted with the latest version of T-20 cricket",
+        "C": "Memorising and reciting hymns",
+        "D": "Studying only the religious books"
+      },
+      "correct": "A",
+      "correct_option_text": "To build character and to enable one to work towards a knowledge of God and self-realization.",
+      "explanation": "The passage explicitly states: 'To develop the spirit is to build character and to enable one to work towards a knowledge of God and self-realization.'",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval",
+        "spiritual-training"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 60,
+      "question_number": 10,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "Self-realisation is possible",
+      "options": {
+        "A": "at the fourth stage of life",
+        "B": "while preparing the youth",
+        "C": "After retirement only",
+        "D": "At old age"
+      },
+      "correct": "A",
+      "correct_option_text": "at the fourth stage of life",
+      "explanation": "The passage mentions the superstition that self-realization is possible only in the fourth stage of life, i.e., sannyasa (renunciation).",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 61,
+      "question_number": 11,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "According to the author, which one of the following statements is true?",
+      "options": {
+        "A": "Spiritual training is as difficult as physical and mental training",
+        "B": "Mental and physical training is easier than the spiritual training",
+        "C": "Mental and physical trainings are as equally difficult as the spiritual training",
+        "D": "Spiritual training has no wisdom as does the mental and physical training"
+      },
+      "correct": "B",
+      "correct_option_text": "Mental and physical training is easier than the spiritual training",
+      "explanation": "The passage opens with 'The spiritual training of the boys was a much more difficult matter than their physical and mental training', confirming that mental and physical training is easier than spiritual training.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Inference / Author's View",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "inference",
+        "author-view"
+      ],
+      "question_category": "inferential",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 62,
+      "question_number": 12,
+      "type": "match",
+      "parent_passage_id": 2,
+      "question": "Match List-I with List-II.\n\nList-I:\nSpiritual Training\nThe narrator relied on religious books\nYoungsters were educated at\nTo develop the spirit was\n\nList-II:\n(I) was much more difficult than physical training\n(II) for the training of the spirit\n(III) Tolstoy Farm\n(IV) to develop and build character",
+      "options": {
+        "A": "(A) - (I), (B) - (II), (C) - (III), (D) - (IV)",
+        "B": "(A) - (II), (B) - (IV), (C) - (I), (D) - (III)",
+        "C": "(A) - (IV), (B) - (I), (C) - (II), (D) - (III)",
+        "D": "(A) - (III), (B) - (II), (C) - (I), (D) - (IV)"
+      },
+      "correct": "A",
+      "correct_option_text": "(A) - (I), (B) - (II), (C) - (III), (D) - (IV)",
+      "pairs": {
+        "A": "I",
+        "B": "II",
+        "C": "III",
+        "D": "IV"
+      },
+      "explanation": "Spiritual Training was much more difficult than physical training (A-I). The narrator relied on religious books for the training of the spirit (B-II). Youngsters were educated at Tolstoy Farm (C-III). To develop the spirit was to develop and build character (D-IV).",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "matching",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 63,
+      "question_number": 13,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "In the sentence 'it gives you the practice needed', the word 'practice' most closely means:",
+      "options": {
+        "A": "training",
+        "B": "an outing",
+        "C": "confidence",
+        "D": "freedom"
+      },
+      "correct": "A",
+      "correct_option_text": "training",
+      "explanation": "'Practice' here means training or experience, referring to the skill set developed through doing a job — the practice needed to fulfil other positions.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Contextual Word Meaning",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "vocabulary",
+        "contextual-meaning"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 64,
+      "question_number": 14,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "The narrator was unable to buy albums at 16 years of age because:",
+      "options": {
+        "A": "He was not permitted to buy anything",
+        "B": "he did not find the ones that he wanted",
+        "C": "he could not afford to buy it",
+        "D": "the albums of his favourite bands were sold out."
+      },
+      "correct": "C",
+      "correct_option_text": "he could not afford to buy it",
+      "explanation": "The passage states that the narrator did not have any money and his parents were not the type to give money out of nowhere or for work done at home. Hence he could not afford the albums.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 65,
+      "question_number": 15,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "The narrator had to look for __________ to purchase the music album he/she wanted.",
+      "options": {
+        "A": "paid work",
+        "B": "un rewarded work",
+        "C": "weekend work",
+        "D": "voluntary work"
+      },
+      "correct": "A",
+      "correct_option_text": "paid work",
+      "explanation": "The narrator needed money to buy albums and therefore had to look for paid work. He found work in Mrs. Hudson's garden.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Inference",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "inference",
+        "detail-retrieval"
+      ],
+      "question_category": "inferential",
+      "estimated_time_sec": 60
+    }
+  ]
+}

@@ -1,0 +1,1447 @@
+{
+  "exam": "CUET (UG)",
+  "subject": "English",
+  "year": "2023",
+  "date": "24th May, 2023",
+  "duration": 45,
+  "total_questions": 50,
+  "questions_to_attempt": 40,
+  "total_marks": 200,
+  "negative_marking_default": 1,
+  "instructions": [
+    "The test is of 45 Minutes duration.",
+    "The test contains 50 questions out of which 40 questions need to be attempted.",
+    "Correct answer or the most appropriate answer: Five marks (+5).",
+    "Any incorrect option marked will be given minus one mark (-1).",
+    "Unanswered/Marked for Review will be given no marks (0)."
+  ],
+  "sections": [
+    {
+      "section_id": 1,
+      "section_name": "Reading Comprehension - Passage 1 (Team Building Exercises)",
+      "question_range": "1-5"
+    },
+    {
+      "section_id": 2,
+      "section_name": "Reading Comprehension - Passage 2 (Simple Living / Detachment)",
+      "question_range": "6-10"
+    },
+    {
+      "section_id": 3,
+      "section_name": "Reading Comprehension - Passage 3 (Autobiography of a Horse)",
+      "question_range": "11-15"
+    },
+    {
+      "section_id": 4,
+      "section_name": "Vocabulary, Grammar and Language Use",
+      "question_range": "16-50"
+    }
+  ],
+  "passages": [
+    {
+      "passage_id": 1,
+      "passage_title": "Team Building Exercises",
+      "passage": "The phrase \"team building exercises\" may be new but the reality is not. Its origin goes back at least as far as the medieval tournaments. These provided knights with military training and the opportunity to make reputations. Individual jousting and hand-to-hand combat came first. Then there were team events. In these, a group of knights fought against another group. These teams often stayed together and fought side-by-side in real battle. Team games today, such as football, baseball, cricket and hockey, are the distant descendants of such medieval tournaments.\n\nA crucial event in the movement from being a group to becoming a team can be the team building exercise. This can be based upon either (1) a substitute team task (for example, a business case study or a few days of outdoor activities) or (2) a real task (for example, going away for a weekend to plan company strategy).\n\nThere are pros and cons to both approaches. The advantage of a substitute task type of event is that success or failure is not of paramount importance. Nor are there any technological or professional challenges to meet, so that people can concentrate on the essential issue of learning as to how to work more effectively together as a team."
+    },
+    {
+      "passage_id": 2,
+      "passage_title": "Simple Living and Detachment",
+      "passage": "When things aren't going well, we tend to think we are lacking in something. But if we want to change our current situation, we should first part with something, before we look to acquire something else. This is a fundamental tenet of simple living.\n\nDiscard your attachments. Let go of your assumptions. Reduce your possessions. Living simply is also about discarding your physical and mental burdens.\n\nIt's amazing how refreshed we can feel after a good cry. Crying clears out whatever weight you were carrying in your heart. You feel energized to try again. I have always felt that the Buddhist concept of the 'enlightened mind' - the Japanese characters for which depict a \"clean mind\" - refers to this 'refreshment' of the spirit.\n\nThe act of discarding, of detaching from mental and physical burdens, from the baggage that weighs us down, is extremely difficult. Sometimes it can be accompanied by real pain, as when we part with someone who is dear to us.\n\nBut if you want to improve the way things are, if you want to live with a light heart, you must start by discarding. The moment you detach, a new abundance will flow into your life."
+    },
+    {
+      "passage_id": 3,
+      "passage_title": "The Autobiography of a Horse",
+      "passage": "Now that I am getting old and stiff in the joints, I like to meditate, while grazing in the pasture, on my foal days. I think that was the happiest part of my life. I had no work to do, and could run about after my mother, who was a fine white Arab mare, without any restraint. Most of my time was spent in the fields, where I nibbled the tender grass and capered about, while my mother was steadily grazing.\n\nBut that could not last for ever. When I was old enough, the trainer came and, to my great indignation, fastened a long rope to my head, and then began driving me round and round in circles with his long whip. I was frightened and angry, but he went on till I was so tired that I could scarcely stand. However, my mother told me that it was no use of my resisting, and to make a long story short, I was at last thoroughly trained as a riding-horse.\n\nI was bought by a young officer as a polo pony, and I soon got to love the game. He was a kind master, and a good rider; and in the end I would do anything for him, and was quite proud when his side won the game. But he got into debt, and had to sell me; and I was bought by a gentleman and a lady who kept a buggy, and was trained to run in shafts. I hated this work; and I am afraid I gave a lot of trouble, by going as slowly as I could. When my driver gave me the whip, I started shying at any object on the road. And then I found that jibbing was a very good trick, and whenever I was whipped, I simply backed. My owner got disgusted at last, and sold me to a gentleman who was fond of hunting.\n\nI was delighted to get back to saddle-work; and thoroughly enjoyed my gallops with the hounds after the jackal in open country. But an accident put a stop to that jolly life; for one day my master pressed me to a big jump which I knew I could not do. I did my best but fell short, and fell. My master was thrown away and he broke his arm, and I badly sprained one of my legs.\n\nI was in a hospital for weeks, and then was sold to a gentleman who wanted a quiet riding-horse. He was a kind master, and used me well; and I was in his service for a good number of years. Now that I am old, he gives me very little work, and I spend most of my time grazing in the pasture, and leading a quiet, contented life."
+    }
+  ],
+  "questions": [
+    {
+      "id": 1,
+      "question_number": 1,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "Choose the correct meaning of the word 'Crucial' from the options given:",
+      "options": {
+        "A": "decisive",
+        "B": "essential",
+        "C": "insignificant",
+        "D": "immature"
+      },
+      "correct": "A",
+      "correct_option_text": "decisive",
+      "explanation": "Decisive is a synonym for crucial, meaning determining or having the power to determine an outcome. Hint: The article 'A' can only be followed by 'decisive'; all other options will be preceded by 'An'.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Synonyms / Word Meaning",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "synonyms",
+        "word-meaning",
+        "comprehension"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 2,
+      "question_number": 2,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "Choose the option that is the Antonym of the word 'Descendent':",
+      "options": {
+        "A": "grandchildren",
+        "B": "heir",
+        "C": "ancestor",
+        "D": "children"
+      },
+      "correct": "C",
+      "correct_option_text": "ancestor",
+      "explanation": "Ancestor means 'from whom one has descended'; the opposite being descendent meaning 'from a particular ancestor'.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Antonyms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "antonyms",
+        "comprehension"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 3,
+      "question_number": 3,
+      "type": "match",
+      "parent_passage_id": 1,
+      "question": "Match the task given in List-I with the appropriate example given in List-II:\n\nList-I:\n(A) substitute team task\n(B) knights did military trainings\n(C) team events of group of knights\n(D) real task\n\nList-II:\n(I) e.g. a few days of outdoor activities\n(II) e.g. plan company strategy\n(III) e.g. individual Jousting\n(IV) e.g. real battle",
+      "options": {
+        "A": "(A)-(I), (B)-(III), (C)-(IV), (D)-(II)",
+        "B": "(A)-(I), (B)-(IV), (C)-(III), (D)-(II)",
+        "C": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)",
+        "D": "(A)-(IV), (B)-(III), (C)-(II), (D)-(I)"
+      },
+      "correct": "A",
+      "correct_option_text": "(A)-(I), (B)-(III), (C)-(IV), (D)-(II)",
+      "pairs": {
+        "A": "I",
+        "B": "III",
+        "C": "IV",
+        "D": "II"
+      },
+      "explanation": "Individual jousting refers to a medieval sporting contest in which two opponents on horseback, typically knights, fight with lances. Substitute team task = a few days of outdoor activities (I). Knights did military trainings using individual jousting (III). Team events of group of knights fought in real battle (IV). Real task = plan company strategy (II).",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "matching",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 4,
+      "question_number": 4,
+      "type": "mcq",
+      "parent_passage_id": 1,
+      "question": "According to the passage, the reality of 'team-building exercise' is that, it is:",
+      "options": {
+        "A": "advanced",
+        "B": "new",
+        "C": "ancient",
+        "D": "modern"
+      },
+      "correct": "C",
+      "correct_option_text": "ancient",
+      "explanation": "Team building activity is not new. It has its origins going back to the medieval tournaments; it is an ancient technique.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 5,
+      "question_number": 5,
+      "type": "multiple_select",
+      "parent_passage_id": 1,
+      "question": "According to the passage, a group of knights fought against another group in:\n(A) cricket\n(B) hockey\n(C) baseball\n(D) real battle\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(C) Only",
+        "B": "(D) Only",
+        "C": "(A) Only",
+        "D": "(B) Only"
+      },
+      "correct": "B",
+      "correct_option_text": "(D) Only",
+      "explanation": "Team games today such as football, baseball, cricket and hockey are the distant descendants of such medieval tournaments. These teams stayed together and fought side by side in real battle. Hence only (D) real battle is correct.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 6,
+      "question_number": 6,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "What is the fundamental tenet of 'simple living'?",
+      "options": {
+        "A": "Realising that we are lacking in something.",
+        "B": "Feeling energised everyday.",
+        "C": "The act of letting go.",
+        "D": "The act of attaining enlightenment."
+      },
+      "correct": "C",
+      "correct_option_text": "The act of letting go.",
+      "explanation": "The act of letting go refers to feeling light by having discarded our attachments, letting go of our assumptions, reducing possessions, discarding our physical and mental burdens. Living simply.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Main Idea",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "main-idea",
+        "simple-living"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 7,
+      "question_number": 7,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "Which among the following give a similar context to the word \"part\" as used in the fourth paragraph of the passage?",
+      "options": {
+        "A": "She is an essential part of the school.",
+        "B": "Difficulties are part and parcel of life.",
+        "C": "I am going to take part in the competition.",
+        "D": "We must part our ways from the evil."
+      },
+      "correct": "D",
+      "correct_option_text": "We must part our ways from the evil.",
+      "explanation": "'Part' here refers to separation. In the passage, 'part with something' means to give up or separate from something. Option (D) uses 'part' to mean separation from evil, which matches the intended context.",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Contextual Word Meaning",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "contextual-meaning",
+        "vocabulary"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 8,
+      "question_number": 8,
+      "type": "multiple_select",
+      "parent_passage_id": 2,
+      "question": "Which among the following provide similar meaning to the word \"discard\" as used in paragraph 5 of the passage?\n(A) Detach\n(B) Let go\n(C) Derived\n(D) Disadvantage\n(E) Disadvantage\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A) and (B) only",
+        "B": "(A) and (C) only",
+        "C": "(C) and (D) only",
+        "D": "(D) and (E) only"
+      },
+      "correct": "A",
+      "correct_option_text": "(A) and (B) only",
+      "explanation": "Discard here refers to detachment, or getting rid of unnecessary things so that new abundance flows in life. 'Detach' (A) and 'Let go' (B) are the correct synonyms.",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Synonyms / Contextual Meaning",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "synonyms",
+        "comprehension",
+        "contextual-meaning"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 9,
+      "question_number": 9,
+      "type": "mcq",
+      "parent_passage_id": 2,
+      "question": "What can be the appropriate title for the passage?",
+      "options": {
+        "A": "Detachment - A key to simple living",
+        "B": "Enlightenment",
+        "C": "Burdens are a part of life",
+        "D": "Japanese way to improve"
+      },
+      "correct": "A",
+      "correct_option_text": "Detachment - A key to simple living",
+      "explanation": "Detachment - A key to simple living is an appropriate title as it sums up the key points in the passage.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Title / Main Theme",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "title",
+        "main-theme"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 10,
+      "question_number": 10,
+      "type": "multiple_select",
+      "parent_passage_id": 2,
+      "question": "According to the passage, what are the qualities of 'a good cry'?\n(A) A good cry makes you feel light and energized.\n(B) A good cry is a way of detaching and discarding the unpleasant.\n(C) A good cry is a sign of weakness.\n(D) A good cry makes you realise that crying is a waste of time.\n(E) A good cry is an illusion in the path of attaining enlightenment.\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A) and (B) Only",
+        "B": "(B) and (C) Only",
+        "C": "(C) and (D) Only",
+        "D": "(A) and (E) Only"
+      },
+      "correct": "A",
+      "correct_option_text": "(A) and (B) Only",
+      "explanation": "It's amazing when an individual feels refreshed after a good cry, therefore a good cry is necessary. It makes you feel light, energized (A), and represents detachment and discarding the unpleasant (B).",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 11,
+      "question_number": 11,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "The word \"nibbled\" as used in the passage means to ________.",
+      "options": {
+        "A": "take huge bites of food",
+        "B": "take small bites of food",
+        "C": "gulp away quickly",
+        "D": "keep eating for a long duration of time"
+      },
+      "correct": "B",
+      "correct_option_text": "take small bites of food",
+      "explanation": "Nibbled means to gently bite at (a part of the body or food), especially amorously or nervously. It refers to taking small bites.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Word Meaning in Context",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "word-meaning",
+        "comprehension"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 12,
+      "question_number": 12,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "Arrange the steps taken by the trainer in the correct order:\n(A) Made him move in circles.\n(B) Fastened him with a long rope.\n(C) Got him tired to an extent that he couldn't stand.\n(D) Made him angry and frightened.\n(E) Made him take his mother's advice and not resist.\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A), (B), (C), (D), (E)",
+        "B": "(D), (B), (A), (E), (C)",
+        "C": "(B), (C), (D), (A), (E)",
+        "D": "(B), (A), (D), (C), (E)"
+      },
+      "correct": "D",
+      "correct_option_text": "(B), (A), (D), (C), (E)",
+      "explanation": "The correct sequence captures the events as narrated in the passage: First the trainer fastened him with a rope (B), then made him move in circles (A), which made him angry and frightened (D), then got him tired (C), and finally he took his mother's advice to not resist (E).",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Sequence of Events",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "sequence",
+        "detail-retrieval"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 90
+    },
+    {
+      "id": 13,
+      "question_number": 13,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "Find out a word from the passage which means 'very happy':",
+      "options": {
+        "A": "steadily",
+        "B": "tired",
+        "C": "disgusted",
+        "D": "delighted"
+      },
+      "correct": "D",
+      "correct_option_text": "delighted",
+      "explanation": "Delighted is a synonym for 'very happy' in the given context.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Word Meaning / Synonyms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "synonyms",
+        "comprehension"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 14,
+      "question_number": 14,
+      "type": "multiple_select",
+      "parent_passage_id": 3,
+      "question": "Being old, the horse -\nA. likes to meditate\nB. enjoys being the polo horse\nC. hunts with the hounds\nD. is unsatisfied with his life\nE. grazes in the pastures\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(B) and (C) Only",
+        "B": "(D) and (E) Only",
+        "C": "(A) and (E) Only",
+        "D": "(A) and (D) Only"
+      },
+      "correct": "C",
+      "correct_option_text": "(A) and (E) Only",
+      "explanation": "Being old, the horse likes to meditate (A) and grazes in the pastures (E). The passage explicitly states these activities in the first and last paragraphs.",
+      "difficulty": "easy",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "detail-retrieval"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 15,
+      "question_number": 15,
+      "type": "mcq",
+      "parent_passage_id": 3,
+      "question": "Which trick, out of the options given below, was NOT a part of the horse's coping mechanism when he was whipped?",
+      "options": {
+        "A": "Jibbing",
+        "B": "Galloping",
+        "C": "Shying",
+        "D": "Backing up"
+      },
+      "correct": "B",
+      "correct_option_text": "Galloping",
+      "explanation": "Galloping means to run very fast which does not fit as a coping mechanism. The passage mentions shying, jibbing, and backing as the horse's tricks when whipped.",
+      "difficulty": "medium",
+      "topic": "Reading Comprehension",
+      "subtopic": "Detail Retrieval / Inference",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "comprehension",
+        "inference",
+        "detail-retrieval"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 16,
+      "question_number": 16,
+      "type": "mcq",
+      "question": "Choose the correct word/expression from the options given, which means 'from the very beginning'",
+      "options": {
+        "A": "ad infinitum",
+        "B": "ab initio",
+        "C": "a priori",
+        "D": "ad hoc"
+      },
+      "correct": "B",
+      "correct_option_text": "ab initio",
+      "explanation": "'Ab initio' is a Latin phrase that refers to 'from the very beginning'. Ad infinitum means endlessly, a priori means reasoning from cause to effect, and ad hoc means improvised.",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Latin / Foreign Phrases",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "latin-phrases",
+        "foreign-expressions"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 17,
+      "question_number": 17,
+      "type": "mcq",
+      "question": "Choose the correct option to change the following sentence into Direct Speech.\nThe supervisor confirmed that the office memo was an original one.",
+      "options": {
+        "A": "The supervisor said, \"the office memo is an original one.\"",
+        "B": "The supervisor said, \"the office order was an original one.\"",
+        "C": "The supervisor said, \"the office order has been an original one.\"",
+        "D": "The supervisor said, \"the office order is an original one.\""
+      },
+      "correct": "A",
+      "correct_option_text": "The supervisor said, \"the office memo is an original one.\"",
+      "explanation": "We are talking about memo here, not about an office order. When converting indirect speech to direct speech, 'was' changes to 'is' (backshifting reversal) and the word 'memo' must be preserved.",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Direct and Indirect Speech",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "direct-speech",
+        "narration"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 90
+    },
+    {
+      "id": 18,
+      "question_number": 18,
+      "type": "mcq",
+      "question": "Choose the correct Exclamatory form of the following Assertive sentence from the options given:\nIt is a lovely weather.",
+      "options": {
+        "A": "What a lovely weather it is !",
+        "B": "Weather seems to be lovely !",
+        "C": "How weather is lovely !",
+        "D": "Good weather is lovely !"
+      },
+      "correct": "A",
+      "correct_option_text": "What a lovely weather it is !",
+      "explanation": "Exclamatory sentences typically start with the exclamatory pronoun 'What'. The structure is: What a/an + adjective + noun + subject + verb!",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Exclamatory Sentences",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "exclamatory-sentences"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 19,
+      "question_number": 19,
+      "type": "mcq",
+      "question": "Complete the sentence with the most suitable Phrasal Verb:\n\"The management decided to _____ all upcoming meetings in the welfare of the employees.\"",
+      "options": {
+        "A": "Call up",
+        "B": "Call on",
+        "C": "Call off",
+        "D": "Call in"
+      },
+      "correct": "C",
+      "correct_option_text": "Call off",
+      "explanation": "'Call off' is the correct response as it means to cancel. The management decided to cancel all upcoming meetings, which aligns with the decision taken.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Phrasal Verbs",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "phrasal-verbs",
+        "vocabulary",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 20,
+      "question_number": 20,
+      "type": "mcq",
+      "question": "Choose the correct determiner to fill in the blank of the following sentence:\nI have _________ trust worthy friends.",
+      "options": {
+        "A": "each",
+        "B": "every",
+        "C": "any",
+        "D": "many"
+      },
+      "correct": "D",
+      "correct_option_text": "many",
+      "explanation": "'Many' here showcases that there are 'a lot of' trustworthy friends. 'Each' and 'every' are used with singular nouns; 'any' does not convey quantity. 'Many' is the correct determiner for a plural countable noun like 'friends'.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Determiners",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "determiners",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 21,
+      "question_number": 21,
+      "type": "mcq",
+      "question": "Choose the most suitable question tag for the following phrase.\n\"They will solve it'.",
+      "options": {
+        "A": "can't they ?",
+        "B": "will they ?",
+        "C": "can they ?",
+        "D": "won't they ?"
+      },
+      "correct": "D",
+      "correct_option_text": "won't they ?",
+      "explanation": "'Won't they' is the suitable response as we are asking about them (a number of people - plural). If the sentence is an affirmative sentence then the tag will be negative. 'Will + subject' becomes 'won't + pronoun' in the tag.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Question Tags",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "question-tags"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 22,
+      "question_number": 22,
+      "type": "mcq",
+      "question": "Choose the correct pair of homonym to complete the following sentences:\nMosquitoes are the _______ of malaria.\nChoose a _________ according to your qualification.",
+      "options": {
+        "A": "career, carier",
+        "B": "cereer, career",
+        "C": "carriers, career",
+        "D": "cerrier, ceerier"
+      },
+      "correct": "C",
+      "correct_option_text": "carriers, career",
+      "explanation": "'Carrier' is something that acts as an agent to spread or carry something — in this case we are talking about disease. 'Career' is what we decide to do in future (profession/vocation).",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Homonyms / Homophones",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "homonyms",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 23,
+      "question_number": 23,
+      "type": "mcq",
+      "question": "Choose the correct ANTONYM of the word 'Dwindle' from the options given:",
+      "options": {
+        "A": "Diminish",
+        "B": "Shrink",
+        "C": "Decrease",
+        "D": "Increase"
+      },
+      "correct": "D",
+      "correct_option_text": "Increase",
+      "explanation": "Dwindle means to decrease and the antonym for dwindle is to increase. Diminish, shrink and decrease are all synonyms of dwindle.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Antonyms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "antonyms"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 24,
+      "question_number": 24,
+      "type": "mcq",
+      "question": "Choose the sentence in which the Adverb has been incorrectly used:",
+      "options": {
+        "A": "He usually visits his parents on Fridays.",
+        "B": "Never I'll see her again.",
+        "C": "Neither of us is going for the marriage.",
+        "D": "The child cried loudly."
+      },
+      "correct": "B",
+      "correct_option_text": "Never I'll see her again.",
+      "explanation": "The second statement is wrong. When a negative adverb like 'never' comes at the beginning of a sentence, subject-auxiliary inversion is required. The correct form is: 'Never will I see her again.'",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Adverb Usage / Inversion",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "adverbs",
+        "error-identification"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 25,
+      "question_number": 25,
+      "type": "multiple_select",
+      "question": "Choose the options that contain the correct Synonym of the word \"Utility\"\nA. utility, usefulness\nB. efficacy, benefit\nC. utility, uselessness\nD. uselessness, efficacy\nE. of use, worth\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A), (B), (C), (D) and (E)",
+        "B": "(A), and (C) Only",
+        "C": "(A), (B) and (E) Only",
+        "D": "(B), (C) and (D) Only"
+      },
+      "correct": "C",
+      "correct_option_text": "(A), (B) and (E) Only",
+      "explanation": "Utility means usefulness, showing efficacy. Therefore options A (usefulness), B (efficacy, benefit) and E (of use, worth) are correct synonyms. Uselessness (C, D) is the antonym of utility.",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Synonyms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "synonyms"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 26,
+      "question_number": 26,
+      "type": "mcq",
+      "question": "Complete the sentence with the most suitable option:\nShe will choose nothing else for breakfast ________.",
+      "options": {
+        "A": "except fruit salad",
+        "B": "only fruit salad",
+        "C": "than fruit salad",
+        "D": "or fruit salad"
+      },
+      "correct": "A",
+      "correct_option_text": "except fruit salad",
+      "explanation": "'Except' is added here in order to show that a particular thing (fruit salad) would exist as the only exception. The idiom 'nothing else ... except' is the correct construction.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Conjunctions / Prepositions",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "conjunctions",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 27,
+      "question_number": 27,
+      "type": "mcq",
+      "question": "Choose the correct Exclamatory form of the following Assertive sentence from the options given below:\nRadhika is a very fine dancer.",
+      "options": {
+        "A": "How fine Radhika is a dancer !",
+        "B": "What Radhika is a dancer !",
+        "C": "What a fine dancer Radhika is !",
+        "D": "Good Radhika is a dancer !"
+      },
+      "correct": "C",
+      "correct_option_text": "What a fine dancer Radhika is !",
+      "explanation": "The correct exclamatory statement follows the structure: What a/an + adjective + noun + subject + verb! Hence 'What a fine dancer Radhika is!'",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Exclamatory Sentences",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "exclamatory-sentences"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 28,
+      "question_number": 28,
+      "type": "match",
+      "question": "Match the words in List-I with the ANTONYMS given in List-II:\n\nList-I (Word):\n(A) evident\n(B) compassion\n(C) lure\n(D) native\n\nList-II (Antonym):\n(I) alien\n(II) obscure\n(III) cruelty\n(IV) repel",
+      "options": {
+        "A": "(A)-(III), (B)-(IV), (C)-(I), (D)-(II)",
+        "B": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)",
+        "C": "(A)-(II), (B)-(III), (C)-(IV), (D)-(I)",
+        "D": "(A)-(II), (B)-(IV), (C)-(III), (D)-(I)"
+      },
+      "correct": "C",
+      "correct_option_text": "(A)-(II), (B)-(III), (C)-(IV), (D)-(I)",
+      "pairs": {
+        "A": "II",
+        "B": "III",
+        "C": "IV",
+        "D": "I"
+      },
+      "explanation": "Evident is an antonym of obscure (A-II). Compassion is opposite of cruelty (B-III). Lure (to attract) is opposite to repel (C-IV). Native is an antonym of alien (D-I).",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Antonyms / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "antonyms",
+        "matching"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 29,
+      "question_number": 29,
+      "type": "mcq",
+      "question": "Arrange the following parts of a sentence into a meaningful sentence.\nA. who would have thought\nB. the Human Genome Project would complete its mapping of 99% of the human genome.\nC. discovered the double helix structure of DNA in 1953\nD. when James Watson and Francis Grick\nE. that 50 years later\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A), (C), (B), (D), (E)",
+        "B": "(D), (C), (A), (E), (B)",
+        "C": "(A), (B), (C), (D), (E)",
+        "D": "(D), (C), (A), (B), (E)"
+      },
+      "correct": "B",
+      "correct_option_text": "(D), (C), (A), (E), (B)",
+      "explanation": "Starting with the names and the time: 'When James Watson and Francis Grick discovered the double helix structure of DNA in 1953, who would have thought that 50 years later the Human Genome Project would complete its mapping of 99% of the human genome.'",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Sentence Rearrangement",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "sentence-rearrangement"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 90
+    },
+    {
+      "id": 30,
+      "question_number": 30,
+      "type": "mcq",
+      "question": "Choose the sentence that is in 'Active construction':",
+      "options": {
+        "A": "Why did Sheela jump over the wall ?",
+        "B": "The mouse was first seen by Kaustav.",
+        "C": "A new shopping complex was built.",
+        "D": "Look! the page was torn by Sudip."
+      },
+      "correct": "A",
+      "correct_option_text": "Why did Sheela jump over the wall ?",
+      "explanation": "An interrogative sentence with an active construction. In option (A), Sheela (subject) performs the action (jump), making it active voice. Options B, C, D are all in passive voice.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Active and Passive Voice",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "active-passive-voice"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 31,
+      "question_number": 31,
+      "type": "match",
+      "question": "Fill in the blanks given in List-I with an appropriate article from List-II.\n\nList-I:\n(A) What is _______ issue that you are facing with your neighbour?\n(B) What ______ brilliant plan!\n(C) When do you prefer having _____ breakfast?\n(D) Where can one find such _______ innovative item?\n\nList-II:\n(I) a\n(II) an\n(III) the\n(IV) zero article (no article)",
+      "options": {
+        "A": "(A)-(III), (B)-(I), (C)-(IV), (D)-(II)",
+        "B": "(A)-(II), (B)-(I), (C)-(III), (D)-(IV)",
+        "C": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)",
+        "D": "(A)-(IV), (B)-(III), (C)-(III), (D)-(I)"
+      },
+      "correct": "A",
+      "correct_option_text": "(A)-(III), (B)-(I), (C)-(IV), (D)-(II)",
+      "pairs": {
+        "A": "III",
+        "B": "I",
+        "C": "IV",
+        "D": "II"
+      },
+      "explanation": "(A) - 'The' is correct because it is talking about a particular issue, so 'the' (definite article) will be used. (B) - 'A' since it is an indefinite article before a consonant sound. (C) - No article is required before 'breakfast' (meal names typically take no article). (D) - 'An' before a vowel sound 'innovative'.",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Articles",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "articles",
+        "matching"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 32,
+      "question_number": 32,
+      "type": "mcq",
+      "question": "Change the underlined part of the '-ing clause' with 'adjective + to infinitive.'\nNamita wasn't ashamed of committing the mistake.",
+      "options": {
+        "A": "Namita was not ashamed to make the mistake.",
+        "B": "Namita had no shame to commit the mistake.",
+        "C": "Namita wasn't ashamed to commit the mistake.",
+        "D": "Namita wasn't ashamed that she had to commit the mistake."
+      },
+      "correct": "C",
+      "correct_option_text": "Namita wasn't ashamed to commit the mistake.",
+      "explanation": "The sentence will remain the same; only the '-ing clause' is changed. 'Ashamed of committing' is converted using 'adjective + to + infinitive': Ashamed + to + commit.",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Infinitives / Gerunds",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "infinitives",
+        "gerunds",
+        "transformation"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 33,
+      "question_number": 33,
+      "type": "match",
+      "question": "Fill in the blanks given in List-I with an appropriate Modal given in List-II.\n\nList-I:\n(A) ______ you close the window please?\n(B) I ______ to return home by now.\n(C) The news anchor has confirmed that today ________ be the coldest day in Delhi.\n(D) One _____ follow the law of the land.\n\nList-II:\n(I) ought\n(II) will\n(III) must\n(IV) could",
+      "options": {
+        "A": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)",
+        "B": "(A)-(IV), (B)-(I), (C)-(II), (D)-(III)",
+        "C": "(A)-(I), (B)-(III), (C)-(II), (D)-(IV)",
+        "D": "(A)-(IV), (B)-(III), (C)-(II), (D)-(I)"
+      },
+      "correct": "B",
+      "correct_option_text": "(A)-(IV), (B)-(I), (C)-(II), (D)-(III)",
+      "pairs": {
+        "A": "IV",
+        "B": "I",
+        "C": "II",
+        "D": "III"
+      },
+      "explanation": "(A) - 'Could' is used for asking with respect/politeness. (B) - 'Ought' is used when talking about things that are desired/expected. (C) - 'Will' is used to make predictions. (D) - 'Must' is used for something that needs to be done (obligation).",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Modal Verbs",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "modal-verbs",
+        "matching"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 34,
+      "question_number": 34,
+      "type": "multiple_select",
+      "question": "Choose the appropriate word to replace the underlined word for formal correspondence in the given sentence:\nKindly forward the emails quickly.\nA. Promptly\nB. Superfast\nC. Request\nD. Elapsed\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A) only",
+        "B": "(D) only",
+        "C": "(C) only",
+        "D": "(B) only"
+      },
+      "correct": "A",
+      "correct_option_text": "(A) only",
+      "explanation": "'Promptly' is the correct formal replacement for 'quickly'. It conveys the same meaning — without delay — but in a formal register appropriate for correspondence.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Formal Register / Synonyms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "formal-register",
+        "synonyms"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 35,
+      "question_number": 35,
+      "type": "mcq",
+      "question": "Choose the correct Idiom from the options given to complete the sentence:\nThe boy _______ to the pleadings of his well wishers.",
+      "options": {
+        "A": "turned a new leaf",
+        "B": "cut loose",
+        "C": "became black and blue",
+        "D": "tuned a deaf ear"
+      },
+      "correct": "D",
+      "correct_option_text": "tuned a deaf ear",
+      "explanation": "'Turned a deaf ear' refers to deliberately refusing to listen or pay attention. The boy ignored the pleadings of his well-wishers.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Idioms",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "idioms",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 36,
+      "question_number": 36,
+      "type": "mcq",
+      "question": "Identify the part of the sentence which has an error.\n(A) It is always\n(B) a good idea\n(C) to open the light\n(D) after sunset\n(E) No error\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A) Only",
+        "B": "(B) Only",
+        "C": "(C) Only",
+        "D": "(E) Only"
+      },
+      "correct": "C",
+      "correct_option_text": "(C) Only",
+      "explanation": "Part C has an error — we never 'open' the light; we 'switch on' the light. The correct phrase is 'to switch on the light'.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Error Identification",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "error-identification"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 37,
+      "question_number": 37,
+      "type": "mcq",
+      "question": "Complete the sentence with the most suitable Phrasal Verb given:\nMy father had _______ a new hardware factory for my brother.",
+      "options": {
+        "A": "set off",
+        "B": "set in",
+        "C": "set up",
+        "D": "set out"
+      },
+      "correct": "C",
+      "correct_option_text": "set up",
+      "explanation": "'Set up' is correct as one sets up a factory or unit. 'Set off' means to start a journey; 'set in' means to begin (of a period or condition); 'set out' means to begin with intent.",
+      "difficulty": "easy",
+      "topic": "Vocabulary",
+      "subtopic": "Phrasal Verbs",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "phrasal-verbs",
+        "vocabulary",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 38,
+      "question_number": 38,
+      "type": "mcq",
+      "question": "Choose the correct preposition from the options given to complete the following sentence.\nMy niece is doing a Master's degree ______Mumbai.",
+      "options": {
+        "A": "around",
+        "B": "at",
+        "C": "on",
+        "D": "in"
+      },
+      "correct": "D",
+      "correct_option_text": "in",
+      "explanation": "'In' is used because we are talking about a city/place. 'In' is used for cities, countries, and larger geographical areas.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Prepositions",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "prepositions",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 39,
+      "question_number": 39,
+      "type": "mcq",
+      "question": "Rearrange the following parts of a sentence labelled as PQRS to make a meaningful sentence.\nP - proud of my new\nQ - after them very well\nR - family and looked\nS - I was very",
+      "options": {
+        "A": "PRSQ",
+        "B": "PQRS",
+        "C": "SPRQ",
+        "D": "SRQP"
+      },
+      "correct": "C",
+      "correct_option_text": "SPRQ",
+      "explanation": "SPRQ is correct: 'I was very proud of my new family and looked after them very well.'",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Sentence Rearrangement",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "sentence-rearrangement"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 90
+    },
+    {
+      "id": 40,
+      "question_number": 40,
+      "type": "mcq",
+      "question": "Choose the correct Indirect form of the following sentence from the given options:\nShe said, \"How can I do such a work !\"",
+      "options": {
+        "A": "She asked that how she can do such a work.",
+        "B": "She said that she can do such a work.",
+        "C": "She wondered how she could do such a work.",
+        "D": "She wondered if how she could do such a work."
+      },
+      "correct": "C",
+      "correct_option_text": "She wondered how she could do such a work.",
+      "explanation": "We convert the exclamatory/rhetorical question to indirect speech using 'wondered'. 'Can' becomes 'could' in reported speech. Option C correctly captures how she wondered how she could do such a work.",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Direct and Indirect Speech",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "indirect-speech",
+        "narration"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 90
+    },
+    {
+      "id": 41,
+      "question_number": 41,
+      "type": "mcq",
+      "question": "Choose the correct option that best expresses the meaning of the Latin phrase, \"ALTER EGO\".",
+      "options": {
+        "A": "Egoistic person",
+        "B": "Altering ego",
+        "C": "Other self",
+        "D": "Selfis"
+      },
+      "correct": "C",
+      "correct_option_text": "Other self",
+      "explanation": "'Alter ego' is a Latin phrase meaning 'other self'. It refers to an alternative identity or a person's secondary or alternative personality.",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Latin / Foreign Phrases",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "latin-phrases"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 42,
+      "question_number": 42,
+      "type": "mcq",
+      "question": "Identify the part of the sentence which has an error:\n(A) Shy people find it\n(B) Difficult to begin a conversation\n(C) With complete strangers.\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A)",
+        "B": "(B)",
+        "C": "(C)",
+        "D": "No error"
+      },
+      "correct": "D",
+      "correct_option_text": "No error",
+      "explanation": "All the statements are placed in a correct order. 'Shy people find it difficult to begin a conversation with complete strangers' is grammatically correct.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Error Identification",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "error-identification"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 43,
+      "question_number": 43,
+      "type": "multiple_select",
+      "question": "Which of the following 'Cs' are characteristics of a formal letter.\n(A) Courteous\n(B) Complaining\n(C) Concise\n(D) Confidential\n(E) Cognizant\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(A), (B), (C), (D) and (E)",
+        "B": "(B) and (C) Only",
+        "C": "(A) and (C) Only",
+        "D": "(B) and (D) Only"
+      },
+      "correct": "C",
+      "correct_option_text": "(A) and (C) Only",
+      "explanation": "Courteous (polite in manner) and Concise (brief and clear) are the correct characteristics of a formal letter. Complaining, Confidential, and Cognizant are not standard 'Cs' of formal letters.",
+      "difficulty": "easy",
+      "topic": "Writing Skills",
+      "subtopic": "Formal Letter Writing",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "writing-skills",
+        "formal-letter",
+        "characteristics"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 44,
+      "question_number": 44,
+      "type": "mcq",
+      "question": "Choose the option that has a grammatically incorrect part of the sentence. If there is no error then choose the option 'No error'.\n(A) I cannot have\n(B) this soup\n(C) as there is\n(D) too many salt\n(E) No error\n\nChoose the correct answer from the options given below:",
+      "options": {
+        "A": "(E) Only",
+        "B": "(D) Only",
+        "C": "(A) Only",
+        "D": "(C) Only"
+      },
+      "correct": "B",
+      "correct_option_text": "(D) Only",
+      "explanation": "'Too many salt' is wrong. 'Salt' is an uncountable noun and requires 'much' not 'many'. The correct expression is 'too much salt'.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Countable and Uncountable Nouns",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "countable-uncountable",
+        "error-identification"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 45,
+      "question_number": 45,
+      "type": "match",
+      "question": "Match the Idioms given in List-I with the correct meanings given in List-II:\n\nList-I:\n(A) Blood, sweat and tears\n(B) To bell the cat\n(C) Below the belt\n(D) In black and white\n\nList-II:\n(I) In simple terms\n(II) To undertake difficult mission at great personal risk\n(III) Gruelling hard work\n(IV) Unfairly",
+      "options": {
+        "A": "(A)-(III), (B)-(II), (C)-(IV), (D)-(I)",
+        "B": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)",
+        "C": "(A)-(IV), (B)-(III), (C)-(I), (D)-(III)",
+        "D": "(A)-(IV), (B)-(II), (C)-(III), (D)-(I)"
+      },
+      "correct": "A",
+      "correct_option_text": "(A)-(III), (B)-(II), (C)-(IV), (D)-(I)",
+      "pairs": {
+        "A": "III",
+        "B": "II",
+        "C": "IV",
+        "D": "I"
+      },
+      "explanation": "(A) 'Blood, sweat and tears' means it is a very hard thing to do and requires a lot of efforts — gruelling hard work (III). (B) 'To bell the cat' means to be brave enough to do something that will be good for the group but is dangerous — undertaking a difficult mission at great personal risk (II). (C) 'Below the belt' means not fair, marked by injustice — unfairly (IV). (D) 'In black and white' means a situation in which it is easy to understand what is right and wrong — in simple terms (I).",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Idioms / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "idioms",
+        "matching"
+      ],
+      "question_category": "conceptual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 46,
+      "question_number": 46,
+      "type": "mcq",
+      "question": "Rearrange the following phrases to get a meaningful sentence:\nof most / now a days / the attitude / parents is / different",
+      "options": {
+        "A": "Now a day parents is different the attitude of most",
+        "B": "Now a days the attitude of most parents is different",
+        "C": "The attitude is different of most parents now a days",
+        "D": "The most parents the attitude is different now a days"
+      },
+      "correct": "B",
+      "correct_option_text": "Now a days the attitude of most parents is different",
+      "explanation": "We start by stating the time period. The correct sentence is: 'Now a days the attitude of most parents is different.'",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Sentence Rearrangement",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "sentence-rearrangement"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 47,
+      "question_number": 47,
+      "type": "mcq",
+      "question": "Choose the correct passive form of the following sentence from the given options.\nPlease come soon.",
+      "options": {
+        "A": "You are to come soon.",
+        "B": "Come soon, please.",
+        "C": "You are requested to come soon.",
+        "D": "You request me to come."
+      },
+      "correct": "C",
+      "correct_option_text": "You are requested to come soon.",
+      "explanation": "The passive form of an imperative (request) sentence uses 'You are requested to + infinitive'. Hence 'You are requested to come soon.'",
+      "difficulty": "medium",
+      "topic": "Grammar",
+      "subtopic": "Active and Passive Voice",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "passive-voice",
+        "imperative"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 75
+    },
+    {
+      "id": 48,
+      "question_number": 48,
+      "type": "match",
+      "question": "Match the words in List-I with the Synonyms given in List-II.\n\nList-I:\n(A) authentic\n(B) contrary\n(C) adjacent\n(D) brittle\n\nList-II:\n(I) adjoining\n(II) genuine\n(III) fragile\n(IV) dissimilar",
+      "options": {
+        "A": "(A)-(II), (B)-(III), (C)-(I), (D)-(IV)",
+        "B": "(A)-(II), (B)-(IV), (C)-(I), (D)-(III)",
+        "C": "(A)-(III), (B)-(IV), (C)-(I), (D)-(II)",
+        "D": "(A)-(I), (B)-(II), (C)-(III), (D)-(IV)"
+      },
+      "correct": "B",
+      "correct_option_text": "(A)-(II), (B)-(IV), (C)-(I), (D)-(III)",
+      "pairs": {
+        "A": "II",
+        "B": "IV",
+        "C": "I",
+        "D": "III"
+      },
+      "explanation": "Authentic = genuine (A-II). Contrary = dissimilar/opposite (B-IV). Adjacent = adjoining/next to (C-I). Brittle = fragile/easily broken (D-III).",
+      "difficulty": "medium",
+      "topic": "Vocabulary",
+      "subtopic": "Synonyms / Matching",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "vocabulary",
+        "synonyms",
+        "matching"
+      ],
+      "question_category": "factual",
+      "estimated_time_sec": 120
+    },
+    {
+      "id": 49,
+      "question_number": 49,
+      "type": "mcq",
+      "question": "Choose the suitable Modal to complete the following sentence:\n_____________ I eat some chocolates ?",
+      "options": {
+        "A": "Ought to",
+        "B": "Can",
+        "C": "Might",
+        "D": "Would"
+      },
+      "correct": "B",
+      "correct_option_text": "Can",
+      "explanation": "'Can' is used to politely ask for permission. 'May I' is more formal but 'Can I' is commonly accepted in informal polite requests.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Modal Verbs",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "modal-verbs",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    },
+    {
+      "id": 50,
+      "question_number": 50,
+      "type": "mcq",
+      "question": "Choose the correct preposition to fill in the blank:\nThe Rajdhani Express is due to arrive __________ platform No. 3.",
+      "options": {
+        "A": "in",
+        "B": "on",
+        "C": "into",
+        "D": "at"
+      },
+      "correct": "D",
+      "correct_option_text": "at",
+      "explanation": "'At' is a preposition that is used for time and specific points/places. Platform numbers are specific points, so 'at' is the correct preposition.",
+      "difficulty": "easy",
+      "topic": "Grammar",
+      "subtopic": "Prepositions",
+      "marks": 5,
+      "negative_marking": 1,
+      "tags": [
+        "grammar",
+        "prepositions",
+        "fill-in-the-blank"
+      ],
+      "question_category": "application",
+      "estimated_time_sec": 60
+    }
+  ]
+}
