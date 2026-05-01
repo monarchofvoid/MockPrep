@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { getMyAnalytics, getMyAttempts } from "../api/client";
 import Navbar from "../components/Navbar";
 import styles from "../styles/Dashboard.module.css";
+import TopicIntelligence from "../components/TopicIntelligence";
 
 function StatCard({ label, value, sub, accent }) {
   return (
@@ -85,7 +86,7 @@ export default function Dashboard() {
 
         {!loading && !error && analytics && (
           <>
-            {/* Stats row */}
+            {/* Stats row — 3 core metrics */}
             <div className={styles.statsRow}>
               <StatCard
                 label="Total Attempts"
@@ -101,19 +102,13 @@ export default function Dashboard() {
                 label="Avg Accuracy"
                 value={`${analytics.avg_accuracy?.toFixed(1) ?? "—"}%`}
               />
-              <StatCard
-                label="Strongest Topic"
-                value={analytics.strongest_topic || "—"}
-                sub="Keep it up!"
-                accent="#059669"
-              />
-              <StatCard
-                label="Weakest Topic"
-                value={analytics.weakest_topic || "—"}
-                sub="Focus here"
-                accent="#dc2626"
-              />
             </div>
+
+            {/* Topic intelligence panel */}
+            <TopicIntelligence
+              topicMastery={analytics.topic_mastery || []}
+              totalAttempts={analytics.total_attempts}
+            />
 
             {/* Recent attempts */}
             <div className={styles.section}>

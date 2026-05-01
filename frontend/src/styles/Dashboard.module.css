@@ -79,9 +79,9 @@
 /* Stats */
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 36px;
+  margin-bottom: 20px;
 }
 
 .statCard {
@@ -246,4 +246,14 @@
   .table td:nth-child(4),
   .table th:nth-child(5),
   .table td:nth-child(5) { display: none; }
+}
+
+/* TopicIntelligence spacing */
+.topicPanel {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 600px) {
+  .statsRow { grid-template-columns: 1fr 1fr; }
+  .statsRow > *:first-child { grid-column: 1 / -1; }
 }

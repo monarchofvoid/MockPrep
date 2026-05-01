@@ -162,6 +162,14 @@ class AttemptSummary(BaseModel):
     class Config:
         from_attributes = True
 
+class TopicMastery(BaseModel):
+    topic:    str
+    subject:  str
+    accuracy: float
+    correct:  int
+    total:    int
+    strength: str   # "strong" | "average" | "weak"
+
 class UserAnalytics(BaseModel):
     user_id: int
     total_attempts: int
@@ -169,6 +177,7 @@ class UserAnalytics(BaseModel):
     avg_accuracy: float
     strongest_topic: Optional[str]
     weakest_topic: Optional[str]
+    topic_mastery: List[TopicMastery] = []
     recent_attempts: List[AttemptSummary]
 
 
