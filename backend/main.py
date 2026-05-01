@@ -64,6 +64,14 @@ def load_question_json(file_path: str) -> dict:
     """
     Load and parse a question bank JSON file.
     Handles both flat format and nested 'meta' format.
+
+    Normalisation applied:
+      1. If top-level has a 'meta' key, its fields are hoisted to the root.
+      2. If the file stores passages in a top-level 'passages' array (with
+         passage_id / passage fields) and questions reference them via
+         'parent_passage_id', the passage text is embedded directly into
+         each question as a 'passage' field so all downstream code
+         (start_attempt, evaluate, get_results) receives it transparently.
     """
     path = QB_ROOT / file_path
     if not path.exists():
@@ -73,11 +81,32 @@ def load_question_json(file_path: str) -> dict:
         )
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
-    # Normalise: if top-level keys include 'meta', hoist its fields
+
+    # Step 1 — hoist 'meta' wrapper if present
     if "meta" in raw and isinstance(raw["meta"], dict):
-        merged = {**raw["meta"], **raw}
-        merged.pop("meta", None)
-        return merged
+        raw = {**raw["meta"], **raw}
+        raw.pop("meta", None)
+
+    # Step 2 — embed passage text into each question via parent_passage_id
+    passages = raw.get("passages", [])
+    if passages:
+        passage_map = {
+            p["passage_id"]: p
+            for p in passages
+            if isinstance(p, dict) and "passage_id" in p
+        }
+        for q in raw.get("questions", []):
+            if q.get("passage"):          # already has inline passage — skip
+                continue
+            pid = q.get("parent_passage_id")
+            if pid is not None and pid in passage_map:
+                p = passage_map[pid]
+                # Combine title + body so the frontend can render both
+                title = p.get("passage_title", "").strip()
+                body  = p.get("passage", "").strip()
+                q["passage"]       = body
+                q["passage_title"] = title if title else None
+
     return raw
 
 
@@ -240,6 +269,7 @@ def start_attempt(
             type=q["type"],
             question=q["question"],
             passage=q.get("passage"),
+            passage_title=q.get("passage_title"),
             options=q["options"],
             difficulty=q["difficulty"],
             topic=q["topic"],
@@ -346,18 +376,7 @@ def submit_attempt(
                 question_id=qr["question_id"],
                 question_text=qr["question_text"],
                 passage=qr.get("passage"),
-                options=qr["options"],
-                selected_option=qr["selected_option"],
-                correct_option=qr["correct_option"],
-                is_correct=qr["is_correct"],
-                marks_awarded=qr["marks_awarded"],
-                explanation=qr["explanation"],
-                time_spent_seconds=qr["time_spent_seconds"],
-                visit_count=qr["visit_count"],
-                answer_changed_count=qr["answer_changed_count"],
-                was_marked_for_review=qr["was_marked_for_review"],
-                difficulty=qr["difficulty"],
-                topic=qr["topic"],
+                passage_title=qr.get("passage_title"),
             )
             for qr in result["question_reviews"]
         ],
@@ -402,7 +421,7 @@ def get_results(
                 question_id=resp.question_id,
                 question_text=q.get("question", ""),
                 passage=q.get("passage"),
-                options=q.get("options", {}),
+                passage_title=q.get("passage_title"),
                 selected_option=resp.selected_option,
                 correct_option=q.get("correct", ""),
                 is_correct=resp.is_correct or False,

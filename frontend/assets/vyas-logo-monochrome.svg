@@ -1,0 +1,10 @@
+<svg width="240" height="220" viewBox="0 0 240 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">VYAS Logo Mark - Monochrome</title>
+  <desc id="desc">Six-path sacred geometry V mark for VYAS, using solid white fill.</desc>
+  <path id="path-outer-left" d="M28.5 46.1L108.5 196.1L131.5 183.9L51.5 33.9Z" fill="#ffffff"/>
+  <path id="path-outer-right" d="M188.5 33.9L108.5 183.9L131.5 196.1L211.5 46.1Z" fill="#ffffff"/>
+  <path id="path-inner-left" d="M65.8 65.3L113.8 155.3L126.2 148.7L78.2 58.7Z" fill="#ffffff"/>
+  <path id="path-inner-right" d="M161.8 58.7L113.8 148.7L126.2 155.3L174.2 65.3Z" fill="#ffffff"/>
+  <path id="path-crown" d="M120 10L154 58L138 58L120 32L102 58L86 58Z" fill="#ffffff"/>
+  <path id="path-diamond" d="M120 86L132 98L120 110L108 98Z" fill="#ffffff"/>
+</svg>

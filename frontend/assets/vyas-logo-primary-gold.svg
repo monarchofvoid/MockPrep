@@ -1,0 +1,17 @@
+<svg width="240" height="220" viewBox="0 0 240 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">VYAS Logo Mark - Primary Gold</title>
+  <desc id="desc">Six-path sacred geometry V mark for VYAS, using the primary gold gradient.</desc>
+  <defs>
+    <linearGradient id="vyasGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0c060"/>
+      <stop offset="40%" stop-color="#d4a843"/>
+      <stop offset="100%" stop-color="#8a6020"/>
+    </linearGradient>
+  </defs>
+  <path id="path-outer-left" d="M28.5 46.1L108.5 196.1L131.5 183.9L51.5 33.9Z" fill="url(#vyasGold)"/>
+  <path id="path-outer-right" d="M188.5 33.9L108.5 183.9L131.5 196.1L211.5 46.1Z" fill="url(#vyasGold)"/>
+  <path id="path-inner-left" d="M65.8 65.3L113.8 155.3L126.2 148.7L78.2 58.7Z" fill="url(#vyasGold)"/>
+  <path id="path-inner-right" d="M161.8 58.7L113.8 148.7L126.2 155.3L174.2 65.3Z" fill="url(#vyasGold)"/>
+  <path id="path-crown" d="M120 10L154 58L138 58L120 32L102 58L86 58Z" fill="url(#vyasGold)"/>
+  <path id="path-diamond" d="M120 86L132 98L120 110L108 98Z" fill="url(#vyasGold)"/>
+</svg>

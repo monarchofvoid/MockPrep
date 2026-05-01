@@ -65,6 +65,7 @@ def evaluate(
             "question_id":          qid,
             "question_text":        q.get("question", ""),
             "passage":              q.get("passage"),
+            "passage_title":        q.get("passage_title"),
             "options":              q.get("options", {}),
             "selected_option":      selected,
             "correct_option":       correct_opt,

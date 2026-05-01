@@ -278,11 +278,12 @@ export default function ResultsPage() {
                     <div className={styles.reviewRenderer}>
                       <QuestionRenderer
                         question={{
-                          question: q.question_text,
-                          options:  q.options,
-                          type:     q.type || "MCQ",
-                          passage:  q.passage,
-                          columns:  q.columns,
+                          question:      q.question_text,
+                          options:       q.options,
+                          type:          q.type || "MCQ",
+                          passage:       q.passage,
+                          passage_title: q.passage_title,
+                          columns:       q.columns,
                         }}
                         selectedOption={q.selected_option}
                         showAnswer={true}

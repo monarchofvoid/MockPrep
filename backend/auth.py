@@ -17,7 +17,24 @@ import models
 from database import get_db
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", "vyas-change-this-in-production-use-a-long-random-string")
+_secret = os.getenv("SECRET_KEY")
+if not _secret:
+    import sys
+    _env = os.getenv("ENVIRONMENT", "development").lower()
+    if _env in ("production", "prod"):
+        raise RuntimeError(
+            "SECRET_KEY environment variable must be set in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    # Development fallback — safe locally, loudly warned
+    import warnings
+    warnings.warn(
+        "SECRET_KEY is not set. Using insecure default — do NOT deploy this to production.",
+        stacklevel=1,
+    )
+    _secret = "vyas-change-this-in-production-use-a-long-random-string"
+
+SECRET_KEY = _secret
 ALGORITHM  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7   # 7 days
 

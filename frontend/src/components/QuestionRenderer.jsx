@@ -215,6 +215,9 @@ function PassageQuestion({ question }) {
       {passage && (
         <div className={styles.passageBox}>
           <div className={styles.passageLabel}>📄 Passage</div>
+          {question.passage_title && (
+            <div className={styles.passageTitle}>{question.passage_title}</div>
+          )}
           <div className={styles.passageText}>{renderRichText(passage)}</div>
         </div>
       )}
