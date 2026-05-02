@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login as apiLogin, signup as apiSignup } from "../api/client";
 import VyasLogo from "../components/VyasLogo";
@@ -168,11 +168,19 @@ export default function LandingPage() {
       </main>
 
       <footer className={styles.footer}>
-        <VyasLogo variant="gold" size={34} />
-        <div>
-          <span className={styles.footerBrand}>VYAS</span>
-          <span className={styles.footerText}>Intelligence · Discipline · Ascent</span>
+        <div className={styles.footerLeft}>
+          <VyasLogo variant="gold" size={30} />
+          <div className={styles.footerBrandText}>
+            <span className={styles.footerBrand}>VYAS</span>
+            <span className={styles.footerText}>Intelligence · Discipline · Ascent</span>
+          </div>
         </div>
+        <nav className={styles.footerLinks}>
+          <Link to="/about"   className={styles.footerLink}>About</Link>
+          <Link to="/contact" className={styles.footerLink}>Contact</Link>
+          <Link to="/privacy" className={styles.footerLink}>Privacy</Link>
+          <Link to="/terms"   className={styles.footerLink}>Terms</Link>
+        </nav>
       </footer>
 
       {modalOpen && (
@@ -256,11 +264,30 @@ export default function LandingPage() {
                 />
               </div>
 
+              {tab === "login" && (
+                <p style={{ margin: "0", textAlign: "right" }}>
+                  <Link
+                    to="/forgot-password"
+                    style={{ fontSize: "12px", color: "rgba(212,168,67,0.7)", textDecoration: "none" }}
+                    onClick={closeModal}
+                  >
+                    Forgot password?
+                  </Link>
+                </p>
+              )}
+
               {error && <p className={styles.formError}>{error}</p>}
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
                 {loading ? "Please wait..." : tab === "login" ? "Sign in →" : "Create account →"}
               </button>
+
+              <p className={styles.consentText}>
+                By continuing, you agree to our{" "}
+                <Link to="/terms"   className={styles.consentLink} onClick={closeModal}>Terms</Link>
+                {" "}&amp;{" "}
+                <Link to="/privacy" className={styles.consentLink} onClick={closeModal}>Privacy Policy</Link>
+              </p>
             </form>
 
             <p className={styles.switchText}>

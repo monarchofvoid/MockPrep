@@ -187,3 +187,12 @@ class UserAnalytics(BaseModel):
 
 # Resolve forward ref
 TokenResponse.model_rebuild()
+
+# ─── Password Reset ────────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

@@ -2,13 +2,13 @@
   "exam": "CUET (UG)",
   "subject": "General Test",
   "year": "2023",
-  "duration": 60,
+  "duration": 70,
   "total_questions": 60,
-  "questions_to_attempt": 50,
+  "questions_to_attempt": 60,
   "total_marks": 250,
   "negative_marking_default": 1,
   "instructions": [
-    "There are 60 questions asked in Section - III, but only 50 questions are to be attempted.",
+    "There are 60 questions asked in Section - III, 60 questions are to be attempted.",
     "Correct answer or the most appropriate answer will be given five marks (+5).",
     "Any incorrect option marked will be given minus one mark (-1).",
     "Unanswered/Marked for review will be given no mark (0)."

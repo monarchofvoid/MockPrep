@@ -3,14 +3,14 @@
   "subject": "English",
   "year": "2023",
   "date": "24th May, 2023",
-  "duration": 45,
+  "duration": 60,
   "total_questions": 50,
-  "questions_to_attempt": 40,
+  "questions_to_attempt": 50,
   "total_marks": 200,
   "negative_marking_default": 1,
   "instructions": [
-    "The test is of 45 Minutes duration.",
-    "The test contains 50 questions out of which 40 questions need to be attempted.",
+    "The test is of 60 Minutes duration.",
+    "The test contains 50 questions out of which 50 questions need to be attempted.",
     "Correct answer or the most appropriate answer: Five marks (+5).",
     "Any incorrect option marked will be given minus one mark (-1).",
     "Unanswered/Marked for Review will be given no marks (0)."

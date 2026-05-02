@@ -5,13 +5,13 @@
   "date": "15th June 2023",
   "shift": "Shift 2",
   "section": "Section III",
-  "duration": 60,
+  "duration": 70,
   "total_questions": 60,
-  "attempt_required": 50,
+  "attempt_required": 60,
   "total_marks": 250,
   "negative_marking_default": 1,
   "instructions": [
-    "There are 60 questions asked in Section III. Attempt any 50 out of 60.",
+    "There are 60 questions asked in Section III. Attempt 60 out of 60.",
     "Correct answer or the most appropriate answer will be given five marks (+5).",
     "Any incorrect option marked will be given minus one mark (-1).",
     "Unanswered/Marked for Review will be given no mark (0)."

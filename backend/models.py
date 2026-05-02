@@ -7,6 +7,31 @@ from sqlalchemy.sql import func
 from database import Base
 
 
+# ── Password Reset ─────────────────────────────────────────────────────────────
+
+class PasswordReset(Base):
+    """
+    Stores hashed one-time password-reset tokens.
+
+    Security design:
+      • token column holds SHA-256(raw_token) — the raw token is only ever
+        emailed and never persisted.
+      • ON DELETE CASCADE ensures cleanup when a user is deleted.
+      • expires_at enforces a 15-minute window.
+      • Records are deleted immediately on successful use (one-time tokens).
+    """
+    __tablename__ = "password_resets"
+
+    # Use String(36) for cross-DB compat (SQLite + PostgreSQL)
+    id         = Column(String(36), primary_key=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token      = Column(Text, nullable=False)                        # SHA-256 hash
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class User(Base):
     __tablename__ = "users"
 

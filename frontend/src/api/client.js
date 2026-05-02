@@ -91,3 +91,11 @@ export const getResults = (attemptId) => request("GET", `/results/${attemptId}`)
 export const getMyAnalytics = () => request("GET", "/analytics/me");
 
 export const getMyAttempts = () => request("GET", "/users/me/attempts");
+
+// ── Password Reset ────────────────────────────────────────────────────────────
+
+export const forgotPassword = (email) =>
+  request("POST", "/auth/forgot-password", { email }, false);
+
+export const resetPassword = (token, new_password) =>
+  request("POST", "/auth/reset-password", { token, new_password }, false);

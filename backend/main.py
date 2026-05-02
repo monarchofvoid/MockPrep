@@ -27,6 +27,8 @@ from database import engine, get_db
 from services.evaluation import evaluate
 from services.analytics import get_user_analytics
 from auth import get_current_user, hash_password, verify_password, create_access_token
+from routers.password_reset import router as password_reset_router
+from routers.contact import router as contact_router
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,10 @@ app.add_middleware(
 
 # Create all tables on startup
 models.Base.metadata.create_all(bind=engine)
+
+# ── Routers ────────────────────────────────────────────────────────────────────
+app.include_router(password_reset_router)
+app.include_router(contact_router)
 
 # Question bank root (can be overridden via env var)
 QB_ROOT = Path(os.getenv("QB_ROOT", "../question_bank"))
