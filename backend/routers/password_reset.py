@@ -1,14 +1,14 @@
 """
 VYAS — Password Reset Router
-Implements POST /auth/forgot-password and POST /auth/reset-password.
+POST /auth/forgot-password   — request a reset link
+POST /auth/reset-password    — submit new password with token
 
 Security model:
-  • Raw token  → sent in email URL (never persisted)
+  • Raw token  → sent in email URL, never stored
   • Hashed token (SHA-256) → stored in password_resets table
-  • Verification: hash the submitted token and compare with stored hash
   • Token TTL: 15 minutes
-  • One-time use: token is deleted immediately after a successful reset
-  • No user-enumeration: /forgot-password always returns 200
+  • One-time use: record deleted immediately after successful reset
+  • No user-enumeration: forgot-password always returns 200
 """
 
 import hashlib
@@ -30,29 +30,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-
 TOKEN_EXPIRE_MINUTES = 15
-MIN_PASSWORD_LENGTH  = 8   # enforce slightly stronger rule on reset
+MIN_PASSWORD_LENGTH  = 8
 
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _generate_raw_token() -> str:
-    """
-    Generate a cryptographically secure URL-safe token (256 bits of entropy).
-    Uses secrets.token_urlsafe — NOT Math.random or uuid4 alone.
-    """
-    return secrets.token_urlsafe(32)   # 32 bytes → 43 URL-safe chars
+    """Cryptographically secure 256-bit URL-safe token."""
+    return secrets.token_urlsafe(32)
 
 
-def _hash_token(raw_token: str) -> str:
-    """SHA-256 hash a token for safe storage."""
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+def _hash_token(raw: str) -> str:
+    """SHA-256 hash of the raw token — what gets stored in the DB."""
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _purge_expired_resets(db: Session, user_id: int) -> None:
-    """Delete any existing (possibly expired) reset records for this user."""
+def _purge_user_resets(db: Session, user_id: int) -> None:
+    """Remove all existing reset tokens for this user before issuing a new one."""
     db.query(models.PasswordReset).filter_by(user_id=user_id).delete()
     db.flush()
 
@@ -65,45 +60,41 @@ def forgot_password(
     db:   Session = Depends(get_db),
 ):
     """
-    Accept an email and — if the user exists — generate a reset token,
-    store it (hashed), and send a reset email.
-
-    Always returns the same 200 response regardless of whether the email
-    exists, to prevent user enumeration.
+    Generate a reset token for the given email (if it exists) and send
+    the link via Gmail SMTP. Always returns the same 200 response to
+    prevent user enumeration.
     """
-    SAFE_RESPONSE = {"message": "If that email is registered, a reset link has been sent."}
+    SAFE_RESPONSE = {
+        "message": "If that email is registered, a reset link has been sent."
+    }
 
     user = db.query(models.User).filter_by(email=body.email).first()
 
     if not user or not user.is_active:
-        # Return success silently — do NOT reveal whether the account exists
-        logger.info("Forgot-password: no active user found for email (not disclosed)")
+        logger.info("Forgot-password: no active account for submitted email (not disclosed)")
         return SAFE_RESPONSE
 
-    # Purge any existing reset tokens for this user (one-token-at-a-time policy)
-    _purge_expired_resets(db, user.id)
+    # One token at a time — purge any existing record first
+    _purge_user_resets(db, user.id)
 
-    # Generate token
     raw_token    = _generate_raw_token()
     hashed_token = _hash_token(raw_token)
     expires_at   = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRE_MINUTES)
 
-    reset_record = models.PasswordReset(
+    db.add(models.PasswordReset(
         id         = str(uuid.uuid4()),
         user_id    = user.id,
         token      = hashed_token,
         expires_at = expires_at,
-    )
-    db.add(reset_record)
+    ))
     db.commit()
 
-    # Send email (non-blocking: a send failure must not expose user existence)
     sent = send_password_reset_email(to_email=user.email, reset_token=raw_token)
     if not sent:
         logger.warning(
             "Forgot-password: email delivery failed for user_id=%s. "
-            "Raw token (dev only): %s",
-            user.id, raw_token
+            "Raw token (dev-only): %s",
+            user.id, raw_token,
         )
 
     return SAFE_RESPONSE
@@ -115,58 +106,48 @@ def reset_password(
     db:   Session = Depends(get_db),
 ):
     """
-    Verify the reset token, enforce password rules, update the hashed
-    password, and invalidate the token.
+    Verify token, validate new password, update hash, delete token.
     """
-    INVALID_TOKEN_ERROR = HTTPException(
+    BAD_TOKEN = HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="This reset link is invalid or has expired.",
     )
 
-    # ── 1. Validate new password before touching the DB ──────────────────────
+    # 1. Validate password length first (cheap check before hitting DB)
     if len(body.new_password) < MIN_PASSWORD_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters.",
         )
 
-    # ── 2. Hash the submitted token and look it up ───────────────────────────
-    hashed_submitted = _hash_token(body.token)
+    # 2. Look up hashed token
+    hashed = _hash_token(body.token)
+    record = db.query(models.PasswordReset).filter_by(token=hashed).first()
+    if not record:
+        raise BAD_TOKEN
 
-    reset_record = (
-        db.query(models.PasswordReset)
-        .filter_by(token=hashed_submitted)
-        .first()
-    )
-
-    if not reset_record:
-        raise INVALID_TOKEN_ERROR
-
-    # ── 3. Check expiry ───────────────────────────────────────────────────────
-    now = datetime.now(timezone.utc)
-    # expires_at may be naive (SQLite) or aware (Postgres); normalise
-    expires = reset_record.expires_at
+    # 3. Check expiry — handle both timezone-aware and naive datetimes
+    now     = datetime.now(timezone.utc)
+    expires = record.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
 
     if now > expires:
-        # Clean up the stale record
-        db.delete(reset_record)
+        db.delete(record)
         db.commit()
-        raise INVALID_TOKEN_ERROR
+        raise BAD_TOKEN
 
-    # ── 4. Fetch user ─────────────────────────────────────────────────────────
-    user = db.query(models.User).filter_by(id=reset_record.user_id).first()
+    # 4. Fetch user
+    user = db.query(models.User).filter_by(id=record.user_id).first()
     if not user or not user.is_active:
-        raise INVALID_TOKEN_ERROR
+        raise BAD_TOKEN
 
-    # ── 5. Hash new password and update (uses same bcrypt helper as signup) ──
+    # 5. Update password using same bcrypt helper as signup
     user.hashed_password = hash_password(body.new_password)
 
-    # ── 6. One-time use — delete the token record immediately ─────────────────
-    db.delete(reset_record)
-
+    # 6. Delete token (one-time use)
+    db.delete(record)
     db.commit()
-    logger.info("Password reset successful for user_id=%s", user.id)
 
+    logger.info("Password reset successful for user_id=%s", user.id)
     return {"message": "Password updated successfully. You can now sign in."}

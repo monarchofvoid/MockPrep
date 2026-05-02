@@ -2,21 +2,21 @@
 VYAS — Contact Router
 POST /api/contact
 
-Validates the submission, optionally persists it to the DB (non-blocking),
-and forwards it to the platform owner via Resend.
+Validates the submission, persists it to the DB (best-effort),
+and forwards it to the platform owner via Gmail SMTP.
 
-Security notes:
-  • Inputs are stripped of leading/trailing whitespace
-  • Email format validated by Pydantic (EmailStr)
-  • Message minimum length enforced server-side
-  • Email delivery failure does NOT expose internals to the client
+Security:
+  • Inputs stripped and validated by Pydantic
+  • Email format checked via EmailStr
+  • Message length enforced (10–3000 chars)
+  • DB failure never blocks email delivery
+  • No internal details exposed to the client
 """
 
+import os
 import logging
-import re
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -32,7 +32,7 @@ MESSAGE_MIN_LEN = 10
 MESSAGE_MAX_LEN = 3000
 
 
-# ── Schema ─────────────────────────────────────────────────────────────────────
+# ── Request schema ────────────────────────────────────────────────────────────
 
 class ContactRequest(BaseModel):
     name:    str
@@ -41,17 +41,17 @@ class ContactRequest(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str) -> str:
+    def name_valid(cls, v: str) -> str:
         v = v.strip()
         if not v:
             raise ValueError("Name is required.")
         if len(v) > 120:
-            raise ValueError("Name is too long.")
+            raise ValueError("Name must be under 120 characters.")
         return v
 
     @field_validator("message")
     @classmethod
-    def message_length(cls, v: str) -> str:
+    def message_valid(cls, v: str) -> str:
         v = v.strip()
         if len(v) < MESSAGE_MIN_LEN:
             raise ValueError(f"Message must be at least {MESSAGE_MIN_LEN} characters.")
@@ -60,36 +60,33 @@ class ContactRequest(BaseModel):
         return v
 
 
-# ── Route ──────────────────────────────────────────────────────────────────────
+# ── Route ─────────────────────────────────────────────────────────────────────
 
 @router.post("/contact", status_code=200)
 def contact(body: ContactRequest, db: Session = Depends(get_db)):
     """
     Accept a contact form submission.
-    1. Optionally save to DB (best-effort — will not fail the request if DB errors)
-    2. Send notification email to the platform owner via Resend
+    Step 1: Try to save to DB (non-blocking — never fails the request).
+    Step 2: Forward to owner via Gmail SMTP.
+    Always returns 200 so the user gets clear feedback.
     """
     name    = body.name
     email   = str(body.email)
     message = body.message
 
-    # ── 1. Persist to DB (optional, best-effort) ──────────────────────────────
+    # Step 1 — persist (best-effort)
     try:
         _save_to_db(db, name=name, email=email, message=message)
     except Exception as exc:
-        # DB failure must not prevent email delivery
         logger.warning("Contact DB insert failed (non-fatal): %s", exc)
 
-    # ── 2. Send email ─────────────────────────────────────────────────────────
+    # Step 2 — send email
     sent = send_contact_email(name=name, email=email, message=message)
-
     if not sent:
-        # Log it; we still return success so users aren't left confused.
-        # Admins can check logs and the DB record.
         logger.error(
             "Contact email delivery failed for %s <%s>. "
-            "Message saved to DB (if DB is up).",
-            name, email
+            "Message may still be in DB.",
+            name, email,
         )
 
     return {
@@ -98,44 +95,50 @@ def contact(body: ContactRequest, db: Session = Depends(get_db)):
     }
 
 
-# ── DB helper (best-effort) ────────────────────────────────────────────────────
+# ── DB helper ─────────────────────────────────────────────────────────────────
+
+def _is_postgres() -> bool:
+    """
+    Check DATABASE_URL env var to detect PostgreSQL.
+    Avoids using SQLAlchemy's deprecated db.bind attribute.
+    """
+    db_url = os.getenv("DATABASE_URL", "").lower()
+    return db_url.startswith("postgresql") or db_url.startswith("postgres")
+
 
 def _save_to_db(db: Session, *, name: str, email: str, message: str) -> None:
     """
-    Persist the contact submission.
-    Uses raw SQL so we don't need to define a full SQLAlchemy model for this.
-    The table is created automatically on first use (if it doesn't exist).
+    Persist the contact submission to contact_messages table.
+    Creates the table automatically on first use if it doesn't exist.
     """
-    # Ensure table exists — idempotent
-    db.execute(text("""
-        CREATE TABLE IF NOT EXISTS contact_messages (
-            id         SERIAL PRIMARY KEY,
-            name       VARCHAR(120) NOT NULL,
-            email      VARCHAR(200) NOT NULL,
-            message    TEXT         NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    """) if _is_postgres(db) else text("""
-        CREATE TABLE IF NOT EXISTS contact_messages (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       VARCHAR(120) NOT NULL,
-            email      VARCHAR(200) NOT NULL,
-            message    TEXT         NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+    if _is_postgres():
+        create_sql = text("""
+            CREATE TABLE IF NOT EXISTS contact_messages (
+                id         SERIAL PRIMARY KEY,
+                name       VARCHAR(120) NOT NULL,
+                email      VARCHAR(200) NOT NULL,
+                message    TEXT         NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+    else:
+        # SQLite fallback (local dev without PostgreSQL)
+        create_sql = text("""
+            CREATE TABLE IF NOT EXISTS contact_messages (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       VARCHAR(120) NOT NULL,
+                email      VARCHAR(200) NOT NULL,
+                message    TEXT         NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
+    db.execute(create_sql)
     db.execute(
-        text("INSERT INTO contact_messages (name, email, message) VALUES (:name, :email, :message)"),
+        text(
+            "INSERT INTO contact_messages (name, email, message) "
+            "VALUES (:name, :email, :message)"
+        ),
         {"name": name, "email": email, "message": message},
     )
     db.commit()
-
-
-def _is_postgres(db: Session) -> bool:
-    """Detect if the underlying DB is PostgreSQL."""
-    try:
-        dialect = db.bind.dialect.name
-        return dialect == "postgresql"
-    except Exception:
-        return False
