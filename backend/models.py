@@ -109,4 +109,54 @@ class Response(Base):
     topic      = Column(String(100), nullable=True)
     difficulty = Column(String(20), nullable=True)
 
+    # ── Phase 0: Enhanced response tracking ───────────────────────────────────
+    # Captures granular signals from question JSON for richer analytics and
+    # the Phase 1 proficiency engine. All columns are nullable — existing rows
+    # have NULL here, new submissions populate them from question JSON.
+    subtopic              = Column(String(100), nullable=True)
+    question_category     = Column(String(50),  nullable=True)   # conceptual/numerical/application/analytical
+    estimated_time_sec    = Column(Integer,      nullable=True)   # from question JSON
+    time_efficiency_ratio = Column(Float,        nullable=True)   # actual / estimated (None if estimated missing)
+
     attempt = relationship("Attempt", back_populates="responses")
+
+
+# ── Phase 1: User Proficiency Model ───────────────────────────────────────────
+
+class UserProficiency(Base):
+    """
+    One row per (user, exam, subject, topic) combination.
+    ELO-like proficiency score, updated after every submission via BackgroundTask.
+    Read by GET /tutor/proficiency and (Phase 2A) tutor explain endpoint.
+    """
+    __tablename__ = "user_proficiency"
+
+    id      = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Scope
+    exam     = Column(String(50),  nullable=False)
+    subject  = Column(String(100), nullable=False)
+    topic    = Column(String(100), nullable=False)
+    subtopic = Column(String(100), nullable=True)
+
+    # ELO-like score: 0–1000, default 400 (Intermediate start)
+    proficiency = Column(Float, nullable=False, default=400.0)
+
+    # Derived analytics
+    accuracy_rate       = Column(Float,   nullable=False, default=0.0)
+    attempt_rate        = Column(Float,   nullable=False, default=0.0)
+    avg_time_efficiency = Column(Float,   nullable=False, default=1.0)
+
+    # Raw counts (required for correct incremental average computation)
+    correct_count = Column(Integer, nullable=False, default=0)
+    total_count   = Column(Integer, nullable=False, default=0)
+
+    # Per-difficulty running accuracy (0.0–1.0)
+    difficulty_easy_acc = Column(Float, nullable=False, default=0.0)
+    difficulty_med_acc  = Column(Float, nullable=False, default=0.0)
+    difficulty_hard_acc = Column(Float, nullable=False, default=0.0)
+
+    last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

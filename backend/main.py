@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
@@ -29,6 +29,10 @@ from services.analytics import get_user_analytics
 from auth import get_current_user, hash_password, verify_password, create_access_token
 from routers.password_reset import router as password_reset_router
 from routers.contact import router as contact_router
+# Phase 1: Tutor router (proficiency endpoint; Phase 2A adds explain/rate)
+from routers.tutor import router as tutor_router
+# Phase 1: Proficiency background task
+from services.proficiency import update_user_proficiency
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
@@ -59,9 +63,16 @@ models.Base.metadata.create_all(bind=engine)
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(password_reset_router)
 app.include_router(contact_router)
+app.include_router(tutor_router)   # Phase 1: /tutor/proficiency (Phase 2A adds /tutor/explain, /tutor/rate)
 
 # Question bank root (can be overridden via env var)
 QB_ROOT = Path(os.getenv("QB_ROOT", "../question_bank"))
+
+# ─── Phase 0: In-memory question bank cache ───────────────────────────────────
+# Eliminates repeated disk reads on every start-attempt and get-results call.
+# Key: relative file path string → Value: parsed + normalised question dict.
+# Cost: ~2MB RAM for the full question bank. Zero breaking changes.
+_QB_CACHE: dict[str, dict] = {}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,6 +82,9 @@ def load_question_json(file_path: str) -> dict:
     Load and parse a question bank JSON file.
     Handles both flat format and nested 'meta' format.
 
+    Phase 0 addition: results are cached in _QB_CACHE after first load.
+    Subsequent calls for the same file_path return instantly from memory.
+
     Normalisation applied:
       1. If top-level has a 'meta' key, its fields are hoisted to the root.
       2. If the file stores passages in a top-level 'passages' array (with
@@ -79,6 +93,10 @@ def load_question_json(file_path: str) -> dict:
          each question as a 'passage' field so all downstream code
          (start_attempt, evaluate, get_results) receives it transparently.
     """
+    # ── Cache hit: return immediately ─────────────────────────────────────────
+    if file_path in _QB_CACHE:
+        return _QB_CACHE[file_path]
+
     path = QB_ROOT / file_path
     if not path.exists():
         raise HTTPException(
@@ -113,6 +131,8 @@ def load_question_json(file_path: str) -> dict:
                 q["passage"]       = body
                 q["passage_title"] = title if title else None
 
+    # ── Cache miss: store and return ──────────────────────────────────────────
+    _QB_CACHE[file_path] = raw
     return raw
 
 
@@ -299,6 +319,7 @@ def start_attempt(
 @app.post("/submit-attempt", response_model=schemas.ResultsResponse, tags=["Test Engine"])
 def submit_attempt(
     body: schemas.SubmitAttemptRequest,
+    background_tasks: BackgroundTasks,          # Phase 1: proficiency update trigger
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -338,26 +359,47 @@ def submit_attempt(
     attempt.submitted_at          = datetime.now(timezone.utc)
 
     # ── Persist per-question responses (Module C) ─────────────────────────────
+    # Phase 0: build a lookup from question_id → raw question dict so we can
+    # pull subtopic, question_category, estimated_time_sec for enriched storage.
+    q_raw_map = {q["id"]: q for q in mock_data["questions"]}
+
     state_map = {qs.question_id: qs for qs in body.question_states}
     for qr in result["question_reviews"]:
-        qs = state_map.get(qr["question_id"])
+        qs  = state_map.get(qr["question_id"])
+        raw_q = q_raw_map.get(qr["question_id"], {})
+
+        # ── Phase 0: compute time efficiency ratio ────────────────────────────
+        estimated = raw_q.get("estimated_time_sec")         # may be None
+        actual    = qs.time_spent_seconds if qs else 0
+        time_eff  = round(actual / estimated, 3) if estimated and estimated > 0 else None
+
         response_row = models.Response(
             attempt_id=attempt.id,
             question_id=qr["question_id"],
             selected_option=qr["selected_option"],
             is_correct=qr["is_correct"],
             marks_awarded=qr["marks_awarded"],
-            time_spent_seconds=qs.time_spent_seconds if qs else 0,
+            time_spent_seconds=actual,
             visit_count=qs.visit_count if qs else 0,
             answer_changed_count=qs.answer_changed_count if qs else 0,
             was_marked_for_review=qs.was_marked_for_review if qs else False,
             topic=qr["topic"],
             difficulty=qr["difficulty"],
+            # ── Phase 0 new columns ───────────────────────────────────────────
+            subtopic=raw_q.get("subtopic"),
+            question_category=raw_q.get("question_category"),
+            estimated_time_sec=estimated,
+            time_efficiency_ratio=time_eff,
         )
         db.add(response_row)
 
     db.commit()
     db.refresh(attempt)
+
+    # ── Phase 1: Trigger proficiency update (non-blocking) ───────────────────
+    # Runs AFTER the response is sent — never delays the user.
+    # Creates its own session internally; safe even if the main session closes.
+    background_tasks.add_task(update_user_proficiency, current_user.id, attempt.id)
 
     return schemas.ResultsResponse(
         attempt_id=attempt.id,

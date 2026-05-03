@@ -196,3 +196,39 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+# ─── Phase 1: Proficiency Engine schemas ──────────────────────────────────────
+
+class DifficultyProfile(BaseModel):
+    easy:   float   # accuracy 0.0–1.0
+    medium: float
+    hard:   float
+
+
+class TopicProficiency(BaseModel):
+    """Per-topic row from user_proficiency table."""
+    exam:        str
+    subject:     str
+    topic:       str
+    subtopic:    Optional[str]
+    proficiency: float          # ELO score 0–1000
+    level:       str            # Beginner / Intermediate / Advanced / Expert
+    accuracy_rate:        float
+    total_count:          int
+    correct_count:        int
+    difficulty_profile:   DifficultyProfile
+    avg_time_efficiency:  float
+    last_updated:         datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserProficiencyResponse(BaseModel):
+    """Response for GET /tutor/proficiency."""
+    user_id:       int
+    overall_level: str    # derived from mean proficiency across all topics
+    overall_score: float  # mean proficiency score
+    topic_count:   int    # how many distinct topics tracked
+    topics:        List[TopicProficiency]
