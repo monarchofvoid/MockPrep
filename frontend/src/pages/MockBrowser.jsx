@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getMocks, startAttempt } from "../api/client";
 import Navbar from "../components/Navbar";
 import styles from "../styles/MockBrowser.module.css";
+import aiStyles from "../styles/AIMockBanner.module.css";   // Phase 2B
 
 function inferDifficulty(mock) {
   if (mock.question_count >= 80) return "Advanced";
@@ -90,6 +91,20 @@ export default function MockBrowser() {
           <h1 className={styles.pageTitle}>Choose your next ascent</h1>
           <p className={styles.pageSub}>Filter papers by exam and year, then enter a timed practice environment.</p>
         </section>
+
+        {/* Phase 2B: AI Mock Generator entry banner */}
+        <div className={aiStyles.banner} onClick={() => navigate("/ai-mock")}>
+          <div className={aiStyles.bannerLeft}>
+            <span className={aiStyles.glyph}>✦</span>
+            <div>
+              <span className={aiStyles.bannerTitle}>AI Mock Generator</span>
+              <span className={aiStyles.bannerSub}>
+                Get a personalised test adapted to your proficiency level — questions generated on demand
+              </span>
+            </div>
+          </div>
+          <span className={aiStyles.bannerArrow}>→</span>
+        </div>
 
         <section className={styles.filters}>
           <input

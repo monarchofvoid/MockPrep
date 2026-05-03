@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getResults } from "../api/client";
 import Navbar from "../components/Navbar";
+import TutorPanel from "../components/TutorPanel";   // Phase 2A
 import styles from "../styles/ResultsPage.module.css";
 import QuestionRenderer from "../components/QuestionRenderer";
 
@@ -319,6 +320,13 @@ export default function ResultsPage() {
                             <p className={styles.expText}>{q.explanation}</p>
                           </div>
                         )}
+
+                        {/* Phase 2A: VYAS AI Tutor — only for wrong/skipped */}
+                        <TutorPanel
+                          attemptId={parseInt(attemptId)}
+                          questionId={q.question_id}
+                          isCorrect={q.is_correct}
+                        />
 
                         <div className={styles.rcFooter}>
                           <span className={styles.rcFootItem}>{fmt(q.time_spent_seconds)}</span>

@@ -1,11 +1,12 @@
 """
 VYAS — Tutor Router
 ====================
-Phase 1: GET /tutor/proficiency
-Phase 2A (to be added): POST /tutor/explain, POST /tutor/rate
+Phase 1: GET  /tutor/proficiency
+Phase 2A:     POST /tutor/explain
+              POST /tutor/rate
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 import models
@@ -13,9 +14,17 @@ import schemas
 from database import get_db
 from auth import get_current_user
 from services.proficiency import get_proficiency_level
+from services.question_bank import load_question_json
+from services.tutor import (
+    get_proficiency_bucket,
+    get_or_create_explanation,
+    build_behavioral_note,
+)
 
 router = APIRouter(prefix="/tutor", tags=["Tutor"])
 
+
+# ── GET /tutor/proficiency ─────────────────────────────────────────────────────
 
 @router.get("/proficiency", response_model=schemas.UserProficiencyResponse)
 def get_proficiency(
@@ -24,12 +33,7 @@ def get_proficiency(
 ):
     """
     Return the authenticated user's full proficiency profile.
-
-    One entry per (exam, subject, topic) triplet they have attempted.
-    Includes ELO score, accuracy breakdown by difficulty, and time efficiency.
-
-    Requires at least one submitted attempt — returns empty topics list
-    for new users (this is correct; proficiency is earned, not assumed).
+    One entry per (exam, subject, topic) triplet attempted.
     """
     rows = (
         db.query(models.UserProficiency)
@@ -41,15 +45,13 @@ def get_proficiency(
         .all()
     )
 
-    # ── Compute overall score as mean across all tracked topics ───────────────
     if rows:
         overall_score = round(sum(r.proficiency for r in rows) / len(rows), 2)
     else:
-        overall_score = 400.0   # default: Intermediate boundary
+        overall_score = 400.0
 
     overall_level = get_proficiency_level(overall_score)
 
-    # ── Build per-topic list ──────────────────────────────────────────────────
     topics = [
         schemas.TopicProficiency(
             exam=r.exam,
@@ -78,4 +80,168 @@ def get_proficiency(
         overall_score=overall_score,
         topic_count=len(rows),
         topics=topics,
+    )
+
+
+# ── POST /tutor/explain ────────────────────────────────────────────────────────
+
+@router.post("/explain", response_model=schemas.TutorExplainResponse)
+async def tutor_explain(
+    body: schemas.TutorExplainRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate a personalized AI explanation for a specific question from a past attempt.
+
+    - Only callable on the authenticated user's own attempts.
+    - Only available for wrong or skipped answers (correct answers don't need tutor).
+    - Explanation is proficiency-bucket-aware and cached for 7 days.
+    - Logs the interaction; user can rate via POST /tutor/rate.
+    """
+
+    # ── Validate attempt ownership ────────────────────────────────────────────
+    attempt = db.query(models.Attempt).filter_by(id=body.attempt_id).first()
+    if not attempt or attempt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found.")
+
+    # ── Validate response row exists and was wrong/skipped ────────────────────
+    response_row = (
+        db.query(models.Response)
+        .filter_by(attempt_id=body.attempt_id, question_id=body.question_id)
+        .first()
+    )
+    if not response_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Response not found for this attempt/question combination.",
+        )
+    if response_row.is_correct:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="VYAS Tutor is only available for wrong or skipped answers.",
+        )
+
+    # ── Load question data from disk (cached) ─────────────────────────────────
+    mock = attempt.mock_test
+    if not mock or not mock.json_file_path:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Mock test question bank file path not found.",
+        )
+
+    try:
+        mock_data = load_question_json(mock.json_file_path)
+    except HTTPException:
+        raise
+
+    question_data = next(
+        (q for q in mock_data.get("questions", []) if q.get("id") == body.question_id),
+        None,
+    )
+    if not question_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Question {body.question_id} not found in question bank.",
+        )
+
+    # ── Enrich question_data with runtime context ──────────────────────────────
+    question_data = dict(question_data)   # shallow copy — don't mutate cache
+    question_data["_actual_time_seconds"] = response_row.time_spent_seconds or 0
+    question_data["_subject"]             = mock.subject or ""
+    question_data["_exam"]                = mock.exam or ""
+
+    # ── Get user's proficiency for this topic ─────────────────────────────────
+    topic       = response_row.topic or question_data.get("topic", "General")
+    prof_row    = (
+        db.query(models.UserProficiency)
+        .filter_by(user_id=current_user.id, topic=topic)
+        .first()
+    )
+    prof_score  = prof_row.proficiency if prof_row else 400.0
+    prof_level  = get_proficiency_bucket(prof_score)
+
+    # ── Get or generate explanation ───────────────────────────────────────────
+    try:
+        explanation_dict, was_cache_hit = await get_or_create_explanation(
+            db=db,
+            question_data=question_data,
+            response_row=response_row,
+            proficiency_score=prof_score,
+            force_refresh=body.force_refresh,
+        )
+    except ValueError as e:
+        # Missing GEMINI_API_KEY
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI service error: {str(e)[:200]}",
+        )
+
+    # ── Log interaction ───────────────────────────────────────────────────────
+    interaction = models.TutorInteraction(
+        user_id             = current_user.id,
+        attempt_id          = body.attempt_id,
+        question_id         = body.question_id,
+        proficiency_at_time = prof_score,
+        was_cache_hit       = was_cache_hit,
+    )
+    db.add(interaction)
+    db.commit()
+    db.refresh(interaction)
+
+    # ── Build behavioural note ────────────────────────────────────────────────
+    behavioral_note = build_behavioral_note(response_row, question_data)
+
+    return schemas.TutorExplainResponse(
+        interaction_id    = interaction.id,
+        question_id       = body.question_id,
+        proficiency_level = prof_level,
+        proficiency_score = round(prof_score, 1),
+        was_cache_hit     = was_cache_hit,
+        behavioral_note   = behavioral_note,
+        explanation       = schemas.TutorExplanation(**explanation_dict),
+    )
+
+
+# ── POST /tutor/rate ───────────────────────────────────────────────────────────
+
+@router.post("/rate", response_model=schemas.TutorRateResponse)
+def rate_explanation(
+    body: schemas.TutorRateRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Submit a 1–5 star rating for a tutor explanation.
+    Only the user who triggered the interaction can rate it.
+    """
+    if not (1 <= body.rating <= 5):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Rating must be between 1 and 5.",
+        )
+
+    interaction = (
+        db.query(models.TutorInteraction)
+        .filter_by(id=body.interaction_id, user_id=current_user.id)
+        .first()
+    )
+    if not interaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interaction not found.",
+        )
+
+    interaction.user_rating = body.rating
+    db.commit()
+
+    return schemas.TutorRateResponse(
+        interaction_id = interaction.id,
+        rating         = body.rating,
+        message        = "Thank you for your feedback!",
     )

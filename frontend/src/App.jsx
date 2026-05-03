@@ -18,6 +18,7 @@ import Dashboard        from "./pages/Dashboard";
 import MockBrowser      from "./pages/MockBrowser";
 import TestPage         from "./pages/TestPage";
 import ResultsPage      from "./pages/ResultsPage";
+import AIMockGeneratorPage from "./pages/AIMockGeneratorPage";   // Phase 2B
 
 import "./styles/global.css";
 
@@ -41,6 +42,7 @@ export default function App() {
           {/* ── Protected ────────────────────────────────────────────────── */}
           <Route path="/dashboard"   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/mocks"       element={<ProtectedRoute><MockBrowser /></ProtectedRoute>} />
+          <Route path="/ai-mock"     element={<ProtectedRoute><AIMockGeneratorPage /></ProtectedRoute>} />
           <Route path="/test/:attemptId"    element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
           <Route path="/results/:attemptId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
 

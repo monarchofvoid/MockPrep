@@ -228,7 +228,113 @@ class TopicProficiency(BaseModel):
 class UserProficiencyResponse(BaseModel):
     """Response for GET /tutor/proficiency."""
     user_id:       int
-    overall_level: str    # derived from mean proficiency across all topics
-    overall_score: float  # mean proficiency score
-    topic_count:   int    # how many distinct topics tracked
+    overall_level: str
+    overall_score: float
+    topic_count:   int
     topics:        List[TopicProficiency]
+
+
+# ─── Phase 2A: Tutor Schemas ──────────────────────────────────────────────────
+
+class TutorExplainRequest(BaseModel):
+    attempt_id:    int
+    question_id:   int
+    force_refresh: bool = False   # bypass cache (admin/debug use)
+
+
+class TutorExplanation(BaseModel):
+    """Structured explanation from Gemini."""
+    opening:       str
+    core_concept:  str
+    why_correct:   str
+    why_wrong:     Optional[str]   # None when student skipped
+    memory_anchor: str
+    follow_up:     Optional[str]   # None for Beginner/Intermediate
+
+
+class TutorExplainResponse(BaseModel):
+    interaction_id:      int
+    question_id:         int
+    proficiency_level:   str
+    proficiency_score:   float
+    was_cache_hit:       bool
+    behavioral_note:     Optional[str]
+    explanation:         TutorExplanation
+
+
+class TutorRateRequest(BaseModel):
+    interaction_id: int
+    rating:         int   # 1–5
+
+
+class TutorRateResponse(BaseModel):
+    interaction_id: int
+    rating:         int
+    message:        str
+
+
+# ─── Phase 2B: AI Mock Generator Schemas ──────────────────────────────────────
+
+class GenerateAIMockRequest(BaseModel):
+    exam:             str
+    subject:          str
+    difficulty:       str = "auto"   # "auto" | "easy" | "medium" | "hard"
+    question_count:   int = 10
+    use_proficiency:  bool = True     # use Phase 1 data if available
+
+
+class AIMockHistoryItem(BaseModel):
+    mock_id:        str
+    exam:           str
+    subject:        str
+    difficulty:     str
+    question_count: int
+    attempt_id:     Optional[int]
+    score:          Optional[float]
+    total_marks:    Optional[float]
+    created_at:     datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AIMockHistoryResponse(BaseModel):
+    ai_mocks: List[AIMockHistoryItem]
+
+
+# ─── Phase 3: Recommendation Engine Schemas ───────────────────────────────────
+
+class WeakTopic(BaseModel):
+    subject:      str
+    topic:        str
+    proficiency:  float
+    accuracy_rate: float   # percentage (0–100)
+    total_count:  int
+
+
+class RecommendedMock(BaseModel):
+    mock_id:          str
+    exam:             str
+    subject:          str
+    year:             str
+    duration_minutes: int
+    total_marks:      float
+    question_count:   int
+    reason:           str
+
+
+class AIMockSuggestion(BaseModel):
+    exam:       str
+    subject:    str
+    topic:      str
+    difficulty: str
+    reason:     str
+
+
+class RecommendationResponse(BaseModel):
+    overall_level:        str
+    overall_score:        float
+    has_proficiency_data: bool
+    weak_topics:          List[WeakTopic]
+    recommended_mocks:    List[RecommendedMock]
+    ai_mock_suggestion:   Optional[AIMockSuggestion]

@@ -1,0 +1,237 @@
+/* TutorPanel.module.css — VYAS Phase 2A
+   Inherits design tokens from global.css:
+   --vyas-gold, --surface-*, --text-*, --radius-*, --font-body
+*/
+
+/* ── Ask button ──────────────────────────────────────────────────────────────── */
+.askBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 9px 18px;
+  background: linear-gradient(135deg, rgba(212, 168, 67, 0.14), rgba(212, 168, 67, 0.06));
+  border: 1.5px solid rgba(212, 168, 67, 0.35);
+  border-radius: 8px;
+  color: var(--vyas-gold, #d4a843);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+}
+.askBtn:hover {
+  background: linear-gradient(135deg, rgba(212, 168, 67, 0.24), rgba(212, 168, 67, 0.12));
+  border-color: rgba(212, 168, 67, 0.6);
+  transform: translateY(-1px);
+}
+.askIcon {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* ── Loading ──────────────────────────────────────────────────────────────────── */
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(212, 168, 67, 0.06);
+  border: 1px solid rgba(212, 168, 67, 0.2);
+  border-radius: 8px;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(212, 168, 67, 0.25);
+  border-top-color: var(--vyas-gold, #d4a843);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loadingText {
+  font-size: 13px;
+  color: var(--text-secondary, #9a9080);
+}
+
+/* ── Error ────────────────────────────────────────────────────────────────────── */
+.errorBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.09);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ef4444;
+}
+.retryBtn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.retryBtn:hover { background: rgba(239, 68, 68, 0.2); }
+
+/* ── Main panel ───────────────────────────────────────────────────────────────── */
+.panel {
+  margin-top: 14px;
+  background: linear-gradient(180deg, rgba(26,26,26,0.95), rgba(17,17,17,0.97));
+  border: 1px solid rgba(212, 168, 67, 0.22);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Panel header ─────────────────────────────────────────────────────────────── */
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(212, 168, 67, 0.14);
+  background: rgba(212, 168, 67, 0.05);
+}
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vyas-gold, #d4a843);
+  letter-spacing: 0.3px;
+}
+.vyasGlyph {
+  font-size: 15px;
+}
+.panelMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.levelBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.3px;
+}
+.cacheBadge {
+  font-size: 10px;
+  color: var(--text-muted, #6f6659);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 2px 7px;
+  border-radius: 12px;
+}
+.refreshBtn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: var(--text-secondary, #9a9080);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.refreshBtn:hover { color: var(--vyas-gold, #d4a843); border-color: rgba(212,168,67,0.4); }
+
+/* ── Behavioral note ──────────────────────────────────────────────────────────── */
+.behaviorNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.07);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.16);
+  font-size: 12px;
+  color: #f59e0b;
+  line-height: 1.55;
+}
+.noteIcon { flex-shrink: 0; font-size: 14px; }
+
+/* ── Explanation sections ─────────────────────────────────────────────────────── */
+.sections {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section {
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+.sectionIcon { font-size: 13px; }
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #6f6659);
+}
+.sectionContent {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-primary, #f5f0e8);
+  white-space: pre-wrap;
+}
+
+/* Section-specific accent colours */
+.section_opening       { border-left: 3px solid rgba(239,68,68,0.5); }
+.section_core_concept  { border-left: 3px solid rgba(212,168,67,0.5); }
+.section_why_correct   { border-left: 3px solid rgba(34,197,94,0.5); }
+.section_why_wrong     { border-left: 3px solid rgba(239,68,68,0.35); }
+.section_memory_anchor { border-left: 3px solid rgba(168,85,247,0.5); }
+.section_follow_up     { border-left: 3px solid rgba(59,130,246,0.5); background: rgba(59,130,246,0.05); }
+
+/* ── Star rating ──────────────────────────────────────────────────────────────── */
+.starRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.starLabel {
+  font-size: 12px;
+  color: var(--text-muted, #6f6659);
+}
+.stars {
+  display: flex;
+  gap: 4px;
+}
+.star {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: rgba(255,255,255,0.18);
+  cursor: pointer;
+  transition: color 0.12s, transform 0.1s;
+  padding: 0;
+  line-height: 1;
+}
+.star:hover { transform: scale(1.15); }
+.starActive { color: var(--vyas-gold, #d4a843); }
+.star:disabled { cursor: default; }

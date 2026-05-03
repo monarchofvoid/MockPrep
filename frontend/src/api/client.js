@@ -99,3 +99,39 @@ export const forgotPassword = (email) =>
 
 export const resetPassword = (token, new_password) =>
   request("POST", "/auth/reset-password", { token, new_password }, false);
+
+// ── Phase 1: Proficiency ──────────────────────────────────────────────────────
+
+export const getMyProficiency = () => request("GET", "/tutor/proficiency");
+
+// ── Phase 2A: VYAS Tutor ──────────────────────────────────────────────────────
+
+export const getTutorExplanation = (attemptId, questionId, forceRefresh = false) =>
+  request("POST", "/tutor/explain", {
+    attempt_id:    attemptId,
+    question_id:   questionId,
+    force_refresh: forceRefresh,
+  });
+
+export const rateTutorExplanation = (interactionId, rating) =>
+  request("POST", "/tutor/rate", {
+    interaction_id: interactionId,
+    rating,
+  });
+
+// ── Phase 2B: AI Mock Generator ───────────────────────────────────────────────
+
+export const generateAIMock = (exam, subject, difficulty, questionCount, useProficiency = true) =>
+  request("POST", "/ai-mock/generate", {
+    exam,
+    subject,
+    difficulty,
+    question_count:  questionCount,
+    use_proficiency: useProficiency,
+  });
+
+export const getAIMockHistory = () => request("GET", "/ai-mock/history");
+
+// ── Phase 3: Recommendations ──────────────────────────────────────────────────
+
+export const getRecommendations = () => request("GET", "/recommendations");

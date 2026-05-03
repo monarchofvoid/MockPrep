@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean,
-    DateTime, ForeignKey, Text
+    DateTime, ForeignKey, Text, JSON
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -55,10 +55,37 @@ class MockTest(Base):
     duration_minutes = Column(Integer, nullable=False)
     total_marks    = Column(Float, nullable=False)
     question_count = Column(Integer, nullable=False)
-    json_file_path = Column(String(300), nullable=False)
-    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    json_file_path = Column(String(300), nullable=True)      # NULL for AI-generated mocks
 
-    attempts = relationship("Attempt", back_populates="mock_test")
+    # ── Phase 2B: AI mock flags ───────────────────────────────────────────────
+    is_ai_generated      = Column(Boolean, nullable=False, default=False)
+    ai_generation_params = Column(JSON,    nullable=True)    # audit/history payload
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    attempts    = relationship("Attempt", back_populates="mock_test")
+    ai_questions = relationship("AIMockQuestion", back_populates="mock_test",
+                                order_by="AIMockQuestion.position",
+                                cascade="all, delete-orphan")
+
+
+# ── Phase 2B: AI Mock Question Storage ────────────────────────────────────────
+
+class AIMockQuestion(Base):
+    """
+    Stores one question per row for AI-generated mocks.
+    question_data is a JSONB blob that exactly matches the QuestionRenderer schema.
+    Position is 1-based; questions are ordered by position when served.
+    """
+    __tablename__ = "ai_mock_questions"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    mock_id       = Column(String(100), ForeignKey("mock_tests.id", ondelete="CASCADE"), nullable=False)
+    question_data = Column(JSON,    nullable=False)   # full MCQ object
+    position      = Column(Integer, nullable=False)   # 1-based ordering
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    mock_test = relationship("MockTest", back_populates="ai_questions")
 
 
 class Attempt(Base):
@@ -160,3 +187,49 @@ class UserProficiency(Base):
     last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+
+# ── Phase 2A: Tutor Cache ──────────────────────────────────────────────────────
+
+class TutorCache(Base):
+    """
+    Cached Gemini explanations keyed by SHA-256(question_id:bucket:answer:correct).
+    Shared across users in the same proficiency cohort — AI costs plateau fast.
+    TTL: 7 days, enforced by expires_at check in services/tutor.py.
+    """
+    __tablename__ = "tutor_cache"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    cache_key          = Column(String(64), unique=True, nullable=False)   # SHA-256 hex
+    question_id        = Column(Integer,    nullable=False)
+    exam               = Column(String(50), nullable=True)
+    proficiency_bucket = Column(String(20), nullable=False)   # Beginner/Intermediate/Advanced/Expert
+    user_answer        = Column(String(1),  nullable=True)    # NULL = skipped
+    correct_answer     = Column(String(1),  nullable=False)
+    explanation_json   = Column(JSON,       nullable=False)   # Parsed Gemini response dict
+    created_at         = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at         = Column(DateTime(timezone=True), nullable=False)
+    hit_count          = Column(Integer,    nullable=False, default=0)
+
+
+# ── Phase 2A: Tutor Interaction Log ───────────────────────────────────────────
+
+class TutorInteraction(Base):
+    """
+    One row per /tutor/explain call.
+    Records proficiency at time of call, cache hit, and optional 1–5 star rating.
+    """
+    __tablename__ = "tutor_interactions"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    user_id             = Column(Integer, ForeignKey("users.id",    ondelete="CASCADE"), nullable=False)
+    attempt_id          = Column(Integer, ForeignKey("attempts.id", ondelete="CASCADE"), nullable=False)
+    question_id         = Column(Integer, nullable=False)
+    proficiency_at_time = Column(Float,   nullable=True)
+    was_cache_hit       = Column(Boolean, nullable=False, default=False)
+    user_rating         = Column(Integer, nullable=True)   # 1–5 stars
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user    = relationship("User")
+    attempt = relationship("Attempt")

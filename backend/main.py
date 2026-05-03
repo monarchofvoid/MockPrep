@@ -33,6 +33,12 @@ from routers.contact import router as contact_router
 from routers.tutor import router as tutor_router
 # Phase 1: Proficiency background task
 from services.proficiency import update_user_proficiency
+# Phase 2A: question bank loader extracted to its own module (avoids circular import)
+from services.question_bank import load_question_json, QB_ROOT, _QB_CACHE, load_ai_mock_questions
+# Phase 2B: AI Mock router
+from routers.ai_mock import router as ai_mock_router
+# Phase 3: Recommendation engine
+from services.recommendations import get_recommendations
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
@@ -63,77 +69,11 @@ models.Base.metadata.create_all(bind=engine)
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(password_reset_router)
 app.include_router(contact_router)
-app.include_router(tutor_router)   # Phase 1: /tutor/proficiency (Phase 2A adds /tutor/explain, /tutor/rate)
+app.include_router(tutor_router)   # Phase 1: /tutor/proficiency; Phase 2A: /tutor/explain, /tutor/rate
+app.include_router(ai_mock_router) # Phase 2B: /ai-mock/generate, /ai-mock/history
 
-# Question bank root (can be overridden via env var)
-QB_ROOT = Path(os.getenv("QB_ROOT", "../question_bank"))
-
-# ─── Phase 0: In-memory question bank cache ───────────────────────────────────
-# Eliminates repeated disk reads on every start-attempt and get-results call.
-# Key: relative file path string → Value: parsed + normalised question dict.
-# Cost: ~2MB RAM for the full question bank. Zero breaking changes.
-_QB_CACHE: dict[str, dict] = {}
-
-
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-def load_question_json(file_path: str) -> dict:
-    """
-    Load and parse a question bank JSON file.
-    Handles both flat format and nested 'meta' format.
-
-    Phase 0 addition: results are cached in _QB_CACHE after first load.
-    Subsequent calls for the same file_path return instantly from memory.
-
-    Normalisation applied:
-      1. If top-level has a 'meta' key, its fields are hoisted to the root.
-      2. If the file stores passages in a top-level 'passages' array (with
-         passage_id / passage fields) and questions reference them via
-         'parent_passage_id', the passage text is embedded directly into
-         each question as a 'passage' field so all downstream code
-         (start_attempt, evaluate, get_results) receives it transparently.
-    """
-    # ── Cache hit: return immediately ─────────────────────────────────────────
-    if file_path in _QB_CACHE:
-        return _QB_CACHE[file_path]
-
-    path = QB_ROOT / file_path
-    if not path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Question bank file not found: {file_path}",
-        )
-    with open(path, "r", encoding="utf-8") as f:
-        raw = json.load(f)
-
-    # Step 1 — hoist 'meta' wrapper if present
-    if "meta" in raw and isinstance(raw["meta"], dict):
-        raw = {**raw["meta"], **raw}
-        raw.pop("meta", None)
-
-    # Step 2 — embed passage text into each question via parent_passage_id
-    passages = raw.get("passages", [])
-    if passages:
-        passage_map = {
-            p["passage_id"]: p
-            for p in passages
-            if isinstance(p, dict) and "passage_id" in p
-        }
-        for q in raw.get("questions", []):
-            if q.get("passage"):          # already has inline passage — skip
-                continue
-            pid = q.get("parent_passage_id")
-            if pid is not None and pid in passage_map:
-                p = passage_map[pid]
-                # Combine title + body so the frontend can render both
-                title = p.get("passage_title", "").strip()
-                body  = p.get("passage", "").strip()
-                q["passage"]       = body
-                q["passage_title"] = title if title else None
-
-    # ── Cache miss: store and return ──────────────────────────────────────────
-    _QB_CACHE[file_path] = raw
-    return raw
+# Phase 2A: QB_ROOT, _QB_CACHE, and load_question_json are now in
+# services/question_bank.py. Imported at top of file.
 
 
 def _make_mock_id(relative_path: Path) -> str:
@@ -288,7 +228,11 @@ def start_attempt(
     db.commit()
     db.refresh(attempt)
 
-    mock_data = load_question_json(mock.json_file_path)
+    mock_data = (
+        load_ai_mock_questions(db, mock.id)
+        if mock.is_ai_generated
+        else load_question_json(mock.json_file_path)
+    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
     questions_out = [
         schemas.QuestionOut(
             id=q["id"],
@@ -336,7 +280,11 @@ def submit_attempt(
         raise HTTPException(status_code=400, detail="Attempt already submitted")
 
     mock = attempt.mock_test
-    mock_data = load_question_json(mock.json_file_path)
+    mock_data = (
+        load_ai_mock_questions(db, mock.id)
+        if mock.is_ai_generated
+        else load_question_json(mock.json_file_path)
+    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
 
     # ── Module D: Run evaluation ──────────────────────────────────────────────
     result = evaluate(
@@ -444,7 +392,11 @@ def get_results(
         raise HTTPException(status_code=400, detail="Attempt not yet submitted")
 
     mock = attempt.mock_test
-    mock_data = load_question_json(mock.json_file_path)
+    mock_data = (
+        load_ai_mock_questions(db, mock.id)
+        if mock.is_ai_generated
+        else load_question_json(mock.json_file_path)
+    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
     q_map = {q["id"]: q for q in mock_data["questions"]}
 
     topic_stats: dict = {}
@@ -521,6 +473,26 @@ def my_analytics(
     return get_user_analytics(db, current_user.id)
 
 
+@app.get("/recommendations", response_model=schemas.RecommendationResponse, tags=["Analytics"])
+def my_recommendations(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Phase 3: Return personalised mock recommendations based on proficiency data.
+
+    Algorithm (pure computation — no AI calls):
+      - Weak subjects (ELO < 450) → surface untried mocks in that subject
+      - Top exam familiarity → prefer same exam series
+      - Already strong subjects (ELO > 600) → deprioritised
+      - AI mock suggestion → weakest topic + difficulty matching proficiency level
+
+    Safe for new users: returns empty lists and 'no proficiency data' flag.
+    Response is fast (<50ms) — no external calls.
+    """
+    return get_recommendations(db, current_user.id)
+
+
 @app.get("/users/me/attempts", tags=["Users"])
 def my_attempts(
     current_user: models.User = Depends(get_current_user),
@@ -547,6 +519,7 @@ def my_attempts(
             "time_taken_seconds": a.time_taken_seconds,
             "submitted": a.submitted_at is not None,
             "started_at": a.started_at,
+            "is_ai_generated": mt.is_ai_generated if mt else False,  # Phase 3
         })
     return result
 

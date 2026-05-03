@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
-import { getMyAnalytics, getMyAttempts } from "../api/client";
+import { getMyAnalytics, getMyAttempts, getRecommendations } from "../api/client";  // Phase 3: +getRecommendations
 import Navbar from "../components/Navbar";
 import styles from "../styles/Dashboard.module.css";
 
@@ -40,12 +40,71 @@ function scoreColor(pct) {
   return "var(--danger)";
 }
 
+// ── Phase 3: Reusable attempts table ─────────────────────────────────────────
+function AttemptsTable({ rows, navigate, isAI = false }) {
+  return (
+    <div className={styles.tableWrapper}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Paper</th>
+            <th>{isAI ? "Difficulty" : "Year"}</th>
+            <th>Score</th>
+            <th>Accuracy</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((attempt) => {
+            const pct = attempt.total_marks
+              ? ((attempt.score / attempt.total_marks) * 100).toFixed(1)
+              : null;
+            return (
+              <tr key={attempt.attempt_id}>
+                <td className={styles.paperCell}>
+                  {isAI && <span className={styles.aiBadgeInline}>✦ </span>}
+                  {attempt.subject}
+                </td>
+                <td>{attempt.year || "-"}</td>
+                <td>
+                  {pct != null ? (
+                    <span className={styles.scoreBadge} style={{ color: scoreColor(parseFloat(pct)) }}>
+                      {attempt.score}/{attempt.total_marks} ({pct}%)
+                    </span>
+                  ) : "-"}
+                </td>
+                <td>{attempt.accuracy != null ? `${attempt.accuracy.toFixed(1)}%` : "-"}</td>
+                <td>{fmt(attempt.time_taken_seconds)}</td>
+                <td>
+                  <span className={attempt.submitted ? styles.badgeDone : styles.badgePending}>
+                    {attempt.submitted ? "Submitted" : "In progress"}
+                  </span>
+                </td>
+                <td>
+                  {attempt.submitted && (
+                    <button className={styles.viewBtn} onClick={() => navigate(`/results/${attempt.attempt_id}`)}>
+                      View results
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [analytics, setAnalytics] = useState(null);
   const [attempts, setAttempts] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);   // Phase 3
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -53,10 +112,15 @@ export default function Dashboard() {
     let mounted = true;
     (async () => {
       try {
-        const [ana, att] = await Promise.all([getMyAnalytics(), getMyAttempts()]);
+        const [ana, att, rec] = await Promise.all([
+          getMyAnalytics(),
+          getMyAttempts(),
+          getRecommendations(),   // Phase 3: runs in parallel — never blocks the page
+        ]);
         if (mounted) {
           setAnalytics(ana);
           setAttempts(att);
+          setRecommendations(rec);
         }
       } catch (e) {
         if (mounted) setError(e.message);
@@ -135,7 +199,117 @@ export default function Dashboard() {
                 sub="Correct among attempted"
                 tone="green"
               />
+              {/* Phase 3: Overall proficiency score card */}
+              {recommendations?.has_proficiency_data && (
+                <StatCard
+                  label="VYAS Level"
+                  value={recommendations.overall_level}
+                  sub={`ELO ${recommendations.overall_score.toFixed(0)} · based on ${recommendations.weak_topics.length + (recommendations.recommended_mocks.length > 0 ? recommendations.recommended_mocks.length : 0)} signals`}
+                  tone="gold"
+                />
+              )}
             </section>
+
+            {/* ── Phase 3: Proficiency Weak Spots ──────────────────────────── */}
+            {recommendations?.has_proficiency_data && recommendations.weak_topics.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <div>
+                    <h2 className={styles.sectionTitle}>⚠ Topics needing attention</h2>
+                    <p className={styles.sectionSub}>
+                      Areas where your accuracy is below 50% — focus here for the biggest gains.
+                    </p>
+                  </div>
+                  <button className={styles.browseLink} onClick={() => navigate("/ai-mock")}>
+                    Practice with AI →
+                  </button>
+                </div>
+                <div className={styles.weakTopicsGrid}>
+                  {recommendations.weak_topics.map((t) => (
+                    <div key={`${t.subject}-${t.topic}`} className={styles.weakCard}>
+                      <div className={styles.weakSubject}>{t.subject}</div>
+                      <div className={styles.weakTopic}>{t.topic}</div>
+                      <div className={styles.weakAccRow}>
+                        <div
+                          className={styles.weakBar}
+                          style={{ width: `${Math.min(100, t.accuracy_rate)}%` }}
+                        />
+                        <span className={styles.weakPct}>{t.accuracy_rate.toFixed(0)}%</span>
+                      </div>
+                      <div className={styles.weakCount}>{t.total_count} attempts</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Phase 3: Recommended Papers ────────────────────────────────── */}
+            {recommendations?.recommended_mocks?.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <div>
+                    <h2 className={styles.sectionTitle}>✦ Recommended for you</h2>
+                    <p className={styles.sectionSub}>
+                      Papers selected based on your proficiency profile — untried mocks that will have the most impact.
+                    </p>
+                  </div>
+                  <button className={styles.browseLink} onClick={() => navigate("/mocks")}>
+                    Browse all →
+                  </button>
+                </div>
+                <div className={styles.recGrid}>
+                  {recommendations.recommended_mocks.map((m) => (
+                    <div key={m.mock_id} className={styles.recCard}>
+                      <div className={styles.recCardTop}>
+                        <span className={styles.recExam}>{m.exam}</span>
+                        <span className={styles.recMeta}>{m.question_count}q · {m.duration_minutes}m</span>
+                      </div>
+                      <div className={styles.recSubject}>{m.subject}</div>
+                      <div className={styles.recYear}>{m.year}</div>
+                      <p className={styles.recReason}>{m.reason}</p>
+                      <button
+                        className={styles.recBtn}
+                        onClick={() => navigate("/mocks")}
+                      >
+                        Start test →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Phase 3: AI mock suggestion */}
+                {recommendations.ai_mock_suggestion && (
+                  <div className={styles.aiSuggestionBox}>
+                    <div className={styles.aiSuggLeft}>
+                      <span className={styles.aiSuggGlyph}>✦</span>
+                      <div>
+                        <span className={styles.aiSuggTitle}>AI Mock Suggestion</span>
+                        <span className={styles.aiSuggDesc}>{recommendations.ai_mock_suggestion.reason}</span>
+                      </div>
+                    </div>
+                    <button
+                      className={styles.aiSuggBtn}
+                      onClick={() => navigate("/ai-mock")}
+                    >
+                      Generate now →
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* ── Phase 3: New user cold-start CTA ─────────────────────────── */}
+            {recommendations && !recommendations.has_proficiency_data && attempts.length > 0 && (
+              <div className={styles.coldStartBox}>
+                <span className={styles.aiSuggGlyph}>✦</span>
+                <div>
+                  <span className={styles.aiSuggTitle}>Unlock personalised recommendations</span>
+                  <span className={styles.aiSuggDesc}>
+                    Submit 3+ mock tests to activate your VYAS proficiency profile and get adapted content.
+                  </span>
+                </div>
+              </div>
+            )}
 
             <section className={styles.chartGrid}>
               <div className={styles.panel}>
@@ -212,55 +386,39 @@ export default function Dashboard() {
                   </button>
                 </div>
               ) : (
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Paper</th>
-                        <th>Year</th>
-                        <th>Score</th>
-                        <th>Accuracy</th>
-                        <th>Time</th>
-                        <th>Status</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attempts.map((attempt) => {
-                        const pct = attempt.total_marks
-                          ? ((attempt.score / attempt.total_marks) * 100).toFixed(1)
-                          : null;
-                        return (
-                          <tr key={attempt.attempt_id}>
-                            <td className={styles.paperCell}>{attempt.subject}</td>
-                            <td>{attempt.year || "-"}</td>
-                            <td>
-                              {pct != null ? (
-                                <span className={styles.scoreBadge} style={{ color: scoreColor(parseFloat(pct)) }}>
-                                  {attempt.score}/{attempt.total_marks} ({pct}%)
-                                </span>
-                              ) : "-"}
-                            </td>
-                            <td>{attempt.accuracy != null ? `${attempt.accuracy.toFixed(1)}%` : "-"}</td>
-                            <td>{fmt(attempt.time_taken_seconds)}</td>
-                            <td>
-                              <span className={attempt.submitted ? styles.badgeDone : styles.badgePending}>
-                                {attempt.submitted ? "Submitted" : "In progress"}
-                              </span>
-                            </td>
-                            <td>
-                              {attempt.submitted && (
-                                <button className={styles.viewBtn} onClick={() => navigate(`/results/${attempt.attempt_id}`)}>
-                                  View results
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* Phase 3: PYQ attempts only */}
+                  {attempts.filter(a => !a.is_ai_generated).length > 0 && (
+                    <AttemptsTable
+                      rows={attempts.filter(a => !a.is_ai_generated)}
+                      navigate={navigate}
+                      label="Question bank papers"
+                    />
+                  )}
+
+                  {/* Phase 3: AI mock attempts — separate section */}
+                  {attempts.filter(a => a.is_ai_generated).length > 0 && (
+                    <>
+                      <div className={styles.attemptsSubheader}>
+                        <span className={styles.vyasGlyph}>✦</span>
+                        <span>AI-generated mocks</span>
+                        <button
+                          className={styles.browseLink}
+                          style={{ marginLeft: "auto" }}
+                          onClick={() => navigate("/ai-mock")}
+                        >
+                          Generate new →
+                        </button>
+                      </div>
+                      <AttemptsTable
+                        rows={attempts.filter(a => a.is_ai_generated)}
+                        navigate={navigate}
+                        label="AI mocks"
+                        isAI
+                      />
+                    </>
+                  )}
+                </>
               )}
             </section>
           </>

@@ -1,0 +1,329 @@
+/* AIMockGeneratorPage.module.css — VYAS Phase 2B
+   Uses design tokens from global.css
+*/
+
+/* ── Page shell ──────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  background: var(--surface-0, #0a0a0a);
+}
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────────── */
+.pageHeader { margin-bottom: 36px; }
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #6f6659);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 12px;
+  display: block;
+  transition: color 0.15s;
+}
+.backBtn:hover { color: var(--vyas-gold, #d4a843); }
+.title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary, #f5f0e8);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.vyasGlyph { color: var(--vyas-gold, #d4a843); }
+.subtitle {
+  font-size: 14px;
+  color: var(--text-secondary, #9a9080);
+  line-height: 1.55;
+  max-width: 540px;
+}
+
+/* ── Two-column layout ────────────────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Shared panel ─────────────────────────────────────────────────────────────── */
+.formPanel,
+.historyPanel {
+  background: linear-gradient(180deg, rgba(26,26,26,0.95), rgba(17,17,17,0.97));
+  border: 1px solid var(--glass-border, rgba(212,168,67,0.16));
+  border-radius: 16px;
+  padding: 28px 24px;
+}
+.panelTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary, #9a9080);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 24px;
+}
+
+/* ── Form fields ──────────────────────────────────────────────────────────────── */
+.field { margin-bottom: 22px; }
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #6f6659);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.select {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text-primary, #f5f0e8);
+  font-size: 14px;
+  font-family: var(--font-body, sans-serif);
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.select:focus {
+  outline: none;
+  border-color: rgba(212,168,67,0.5);
+}
+.select option { background: #1a1a1a; }
+
+/* ── Difficulty buttons ───────────────────────────────────────────────────────── */
+.diffGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.diffBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: var(--text-secondary, #9a9080);
+  font-size: 13px;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  text-align: left;
+}
+.diffBtn:hover { border-color: rgba(212,168,67,0.35); color: var(--text-primary, #f5f0e8); }
+.diffActive {
+  background: rgba(212,168,67,0.1);
+  border-color: rgba(212,168,67,0.5);
+  color: var(--vyas-gold, #d4a843);
+}
+
+/* ── Count selector ───────────────────────────────────────────────────────────── */
+.countRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.countBtn {
+  flex: 1;
+  padding: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: var(--text-secondary, #9a9080);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.countBtn:hover { border-color: rgba(212,168,67,0.35); color: var(--text-primary, #f5f0e8); }
+.countActive {
+  background: rgba(212,168,67,0.1);
+  border-color: rgba(212,168,67,0.5);
+  color: var(--vyas-gold, #d4a843);
+}
+.fieldHint {
+  font-size: 11px;
+  color: var(--text-muted, #6f6659);
+  margin-top: 4px;
+}
+
+/* ── Error box ────────────────────────────────────────────────────────────────── */
+.errorBox {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.09);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ef4444;
+  margin-bottom: 16px;
+}
+
+/* ── Generate button ──────────────────────────────────────────────────────────── */
+.generateBtn {
+  width: 100%;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(212,168,67,0.18), rgba(212,168,67,0.08));
+  border: 1.5px solid rgba(212,168,67,0.4);
+  border-radius: 10px;
+  color: var(--vyas-gold, #d4a843);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-body, sans-serif);
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+  margin-top: 4px;
+}
+.generateBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(212,168,67,0.28), rgba(212,168,67,0.14));
+  border-color: rgba(212,168,67,0.65);
+  transform: translateY(-1px);
+}
+.generateBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+.btnSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(212,168,67,0.3);
+  border-top-color: var(--vyas-gold, #d4a843);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.generatingNote {
+  font-size: 12px;
+  color: var(--text-muted, #6f6659);
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* ── History panel ────────────────────────────────────────────────────────────── */
+.historyLoading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+.historyEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 0;
+  color: var(--text-muted, #6f6659);
+  text-align: center;
+}
+.emptyIcon { font-size: 32px; }
+.historyEmpty p { font-size: 13px; }
+.historyList { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── History card ─────────────────────────────────────────────────────────────── */
+.historyCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  transition: border-color 0.15s;
+}
+.historyCard:hover { border-color: rgba(212,168,67,0.2); }
+.historyLeft { flex: 1; min-width: 0; }
+.historySubject {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #f5f0e8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.historyMeta {
+  font-size: 11px;
+  color: var(--text-muted, #6f6659);
+  text-transform: capitalize;
+}
+.historyRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.historyScore {
+  font-size: 18px;
+  font-weight: 800;
+  min-width: 48px;
+  text-align: right;
+}
+.historyPending {
+  font-size: 11px;
+  color: var(--text-muted, #6f6659);
+}
+.historyViewBtn {
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--text-secondary, #9a9080);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.historyViewBtn:hover {
+  border-color: rgba(212,168,67,0.4);
+  color: var(--vyas-gold, #d4a843);
+}
+
+/* ── Phase 3: Personalisation additions ──────────────────────────────────────── */
+.adaptiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 13px;
+  background: rgba(212, 168, 67, 0.12);
+  border: 1px solid rgba(212, 168, 67, 0.35);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vyas-gold, #d4a843);
+}
+.suggestionBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 8px;
+  max-width: 520px;
+}
+.suggIcon { font-size: 14px; flex-shrink: 0; }
+.suggText { font-size: 12px; color: #93c5fd; line-height: 1.5; }
