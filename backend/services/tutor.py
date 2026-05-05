@@ -123,7 +123,7 @@ async def call_gemini(system_prompt: str, user_message: str) -> dict:
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
             "temperature": 0.3,
-            "maxOutputTokens": 4048,   # B2: raised from 1024
+            "maxOutputTokens": 8048,   # B2: raised from 1024
             "responseMimeType": "application/json",
         },
     }

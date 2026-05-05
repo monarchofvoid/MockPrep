@@ -172,7 +172,7 @@ async def call_gemini_generate(system_prompt: str, user_message: str) -> list[di
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
-            "temperature":      0.7,
+            "temperature":      0.5,
             "maxOutputTokens":  8192,
             "responseMimeType": "application/json",
         },
