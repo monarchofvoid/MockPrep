@@ -60,6 +60,8 @@ html {
   background: var(--surface-0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* FIX: prevent any overflowing element from causing horizontal page scroll */
+  overflow-x: hidden;
 }
 
 body {
@@ -70,6 +72,9 @@ body {
     radial-gradient(circle at 86% 2%, rgba(59, 130, 246, 0.1), transparent 28%),
     var(--surface-0);
   color: var(--text-primary);
+  /* FIX: belt-and-braces overflow guard (sticky nav inside body) */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 #root { min-height: 100vh; }

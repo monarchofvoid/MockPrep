@@ -52,7 +52,24 @@ async function request(method, path, body = null, requiresAuth = true) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Request failed");
+
+    // FIX: FastAPI validation errors (422) return `detail` as an array of
+    // objects like [{ loc: [...], msg: "...", type: "..." }].
+    // Passing an array to `new Error()` serialises it as "[object Object]".
+    // We now normalise it to a human-readable string before throwing.
+    let message;
+    if (Array.isArray(err.detail)) {
+      message = err.detail
+        .map((e) => {
+          const loc = Array.isArray(e.loc) ? e.loc.join(" → ") : "";
+          return loc ? `${loc}: ${e.msg}` : e.msg;
+        })
+        .join("; ");
+    } else {
+      message = err.detail || "Request failed";
+    }
+
+    throw new Error(message);
   }
 
   return res.json();

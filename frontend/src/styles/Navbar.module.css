@@ -1,3 +1,5 @@
+/* ── Base nav ─────────────────────────────────────────────────────────────── */
+
 .nav {
   position: sticky;
   top: 0;
@@ -7,6 +9,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* FIX: prevent nav from ever exceeding viewport width */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   background: rgba(17, 17, 17, 0.92);
   border-bottom: 1px solid var(--surface-border);
   backdrop-filter: blur(18px);
@@ -25,6 +31,7 @@
   border: 0;
   background: transparent;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .brandName {
@@ -34,6 +41,8 @@
   letter-spacing: 0.1em;
   font-size: 18px;
 }
+
+/* ── Desktop links ───────────────────────────────────────────────────────── */
 
 .links {
   display: flex;
@@ -49,6 +58,7 @@
   padding: 8px 10px;
   text-decoration: none;
   transition: color 160ms ease;
+  white-space: nowrap;
 }
 
 .navLink::after {
@@ -83,6 +93,7 @@
   cursor: pointer;
   font-weight: 700;
   font-size: 14px;
+  white-space: nowrap;
   transition: color 160ms ease, border-color 160ms ease;
 }
 
@@ -91,8 +102,126 @@
   border-color: rgba(212, 168, 67, 0.55);
 }
 
-@media (max-width: 720px) {
+/* ── Hamburger button — hidden on desktop ────────────────────────────────── */
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid rgba(212, 168, 67, 0.2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.bar {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text-secondary);
+  border-radius: 2px;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+/* Animate to ✕ when open */
+.barOpen1 { transform: translateY(7px) rotate(45deg); }
+.barOpen2 { opacity: 0; }
+.barOpen3 { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Mobile drawer ───────────────────────────────────────────────────────── */
+
+.mobileMenu {
+  display: none;
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  background: rgba(17, 17, 17, 0.97);
+  border-bottom: 1px solid var(--surface-border);
+  backdrop-filter: blur(18px);
+  padding: var(--space-3) 0 var(--space-4);
+  z-index: 99;
+  flex-direction: column;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.mobileLink {
+  display: block;
+  padding: 14px 24px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.mobileLink:hover,
+.mobileLink.active {
+  color: var(--text-primary);
+  background: rgba(212, 168, 67, 0.06);
+  border-left-color: var(--vyas-gold);
+}
+
+.mobileLogoutBtn {
+  display: block;
+  margin: var(--space-3) var(--space-5) 0;
+  padding: 12px;
+  text-align: center;
+  border: 1px solid rgba(212, 168, 67, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(212, 168, 67, 0.06);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.mobileLogoutBtn:hover {
+  color: var(--text-primary);
+  border-color: rgba(212, 168, 67, 0.55);
+}
+
+/* ── Responsive breakpoint ───────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 0 var(--space-4);
+  }
+
+  /* Hide desktop links, show hamburger */
+  .links {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+
+  /* Show mobile drawer only when rendered (controlled by React state) */
+  .mobileMenu {
+    display: flex;
+  }
+
+  .brandName {
+    font-size: 15px;
+  }
+}
+
+/* Tablet: keep links visible but tighter */
+@media (min-width: 641px) and (max-width: 720px) {
   .nav { padding: 0 var(--space-4); }
   .links { gap: var(--space-1); }
+  .navLink { padding: 8px 7px; font-size: 13px; }
+  .logoutBtn { padding: 7px 11px; font-size: 13px; }
   .brandName { font-size: 15px; }
+  .hamburger { display: none; }
+  .mobileMenu { display: none !important; }
 }

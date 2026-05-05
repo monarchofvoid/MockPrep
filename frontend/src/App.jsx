@@ -1,20 +1,13 @@
 /**
  * VYAS v0.6 — App Router
  *
- * Changes vs v0.5:
- *   - Added /profile route → ProfilePage (Feature 1 / D2)
- *   - LandingPage replaced with redesigned version (Feature 3)
+ * FIX (Bug): Route params for /test and /results were named ":id" but
+ * TestPage and ResultsPage both destructure `{ attemptId }` from useParams().
+ * Mismatch caused attemptId === undefined → URL "/results/undefined"
+ * → parseInt("undefined") = NaN → GET /results/NaN → 422 → "[object Object]".
  *
- * FIX v0.6.1:
- *   - Removed erroneous <Route element={<StaticLayout />}> layout wrapper.
- *     About, Contact, PrivacyPolicy, and Terms already self-wrap in
- *     <StaticLayout children={...}> — nesting them inside a layout route
- *     caused StaticLayout to render with no children (undefined), producing
- *     a double-wrapped and ultimately blank static page area.
- *   - ForgotPassword and ResetPassword have their own standalone layout
- *     (VyasLogo-based) — they were also incorrectly grouped inside the
- *     StaticLayout route, which would have hidden their content.
- *   - ProtectedRoute now correctly uses <Outlet /> (see that file).
+ * Fix: renamed ":id" → ":attemptId" on both routes so useParams()
+ * returns the correct key.
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -60,12 +53,13 @@ export default function App() {
 
           {/* ── Protected — require auth ────────────────────────────────── */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard"   element={<Dashboard />} />
-            <Route path="/mocks"       element={<MockBrowser />} />
-            <Route path="/test/:id"    element={<TestPage />} />
-            <Route path="/results/:id" element={<ResultsPage />} />
-            <Route path="/ai-mock"     element={<AIMockGeneratorPage />} />
-            <Route path="/profile"     element={<ProfilePage />} />
+            <Route path="/dashboard"          element={<Dashboard />} />
+            <Route path="/mocks"              element={<MockBrowser />} />
+            {/* FIX: was ":id" — useParams() key must match component destructure */}
+            <Route path="/test/:attemptId"    element={<TestPage />} />
+            <Route path="/results/:attemptId" element={<ResultsPage />} />
+            <Route path="/ai-mock"            element={<AIMockGeneratorPage />} />
+            <Route path="/profile"            element={<ProfilePage />} />
           </Route>
 
           {/* ── 404 fallback ─────────────────────────────────────────────── */}

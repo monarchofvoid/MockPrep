@@ -7,3 +7,14 @@
 2026-05-05 06:57:26 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
 2026-05-05 07:19:53 | INFO     | routers.profile | Creating new profile for user_id=5
 2026-05-05 07:41:35 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 08:24:58 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 08:25:00 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 08:25:00 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 08:25:52 | INFO     | services.tutor | Calling Gemini tutor for question_id=3 bucket=Intermediate
+2026-05-05 08:26:03 | ERROR    | services.gemini_utils | Gemini response truncated (MAX_TOKENS). Increase maxOutputTokens or reduce prompt size.
+2026-05-05 08:27:49 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 08:27:53 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 08:27:54 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 08:27:54 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 08:28:10 | INFO     | services.tutor | Calling Gemini tutor for question_id=3 bucket=Intermediate
+2026-05-05 08:47:13 | INFO     | main | VYAS v0.6 shutting down.
