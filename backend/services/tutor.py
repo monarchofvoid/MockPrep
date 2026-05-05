@@ -1,22 +1,17 @@
 """
-VYAS Phase 2A — Tutor Service
-================================
-Provides personalized AI explanations via the Gemini API.
-
-Public API:
-  get_proficiency_bucket(score) → str
-  make_cache_key(question_id, bucket, user_answer, correct_answer) → str
-  build_tutor_prompt(question_data, user_answer, proficiency_level,
-                     time_efficiency, was_marked, answer_changes) → (system, user)
-  async call_gemini(system_prompt, user_message) → dict
-  async get_or_create_explanation(db, question_data, response_row,
-                                  proficiency_score, force_refresh) → (dict, bool)
+VYAS v0.6 — Tutor Service
+==========================
+Fixes applied vs v0.5:
+  B1: API key never exposed in exceptions (URLs logged server-side only)
+  B2: maxOutputTokens raised to 2048; finishReason validated before JSON parse
+  B3: json.loads replaced with _safe_json_extract from gemini_utils
+  B6: Granular exception types replace bare `except Exception`
+  P3: print() replaced with logging
 """
 
 import hashlib
-import json
+import logging
 import os
-import traceback
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -24,73 +19,46 @@ import httpx
 from sqlalchemy.orm import Session
 
 import models
+from services.gemini_utils import (
+    _safe_json_extract,
+    check_finish_reason,
+    extract_raw_text,
+    GeminiParseError,
+    GeminiTruncationError,
+)
 
-# ── Configuration ──────────────────────────────────────────────────────────────
-# NOTE: Do NOT read GEMINI_MODEL at module level.
-# It is read fresh inside call_gemini() on every request so that:
-#   1. A server restart after editing .env picks up the new value correctly.
-#   2. A missing env var produces a clear error, not a silent None→404.
-CACHE_TTL_DAYS  = 7
-GEMINI_TIMEOUT  = 20.0   # seconds
+logger = logging.getLogger(__name__)
+
+CACHE_TTL_DAYS = 7
+GEMINI_TIMEOUT = 20.0
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 )
 
 
-# ── Proficiency helpers ────────────────────────────────────────────────────────
-
 def get_proficiency_bucket(score: float) -> str:
-    """Map ELO score to one of the 4 cache bucket labels."""
-    if score >= 800:
-        return "Expert"
-    if score >= 600:
-        return "Advanced"
-    if score >= 300:
-        return "Intermediate"
+    if score >= 800: return "Expert"
+    if score >= 600: return "Advanced"
+    if score >= 300: return "Intermediate"
     return "Beginner"
 
 
-# ── Cache key ──────────────────────────────────────────────────────────────────
-
-def make_cache_key(
-    question_id: int,
-    proficiency_bucket: str,
-    user_answer: Optional[str],
-    correct_answer: str,
-) -> str:
-    """
-    SHA-256 of (question_id:bucket:user_answer:correct_answer).
-    Produces a 64-char hex string suitable for VARCHAR(64).
-    user_answer=None → "SKIPPED" (different explanation tone than wrong answer).
-    """
+def make_cache_key(question_id: int, proficiency_bucket: str,
+                   user_answer: Optional[str], correct_answer: str) -> str:
     raw = f"{question_id}:{proficiency_bucket}:{user_answer or 'SKIPPED'}:{correct_answer}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-# ── Prompt builder ─────────────────────────────────────────────────────────────
+def build_tutor_prompt(question_data: dict, user_answer: Optional[str],
+                       proficiency_level: str, time_efficiency: Optional[float],
+                       was_marked: bool, answer_changes: int) -> tuple[str, str]:
+    actual_time = question_data.get("_actual_time_seconds", 0)
+    estimated   = question_data.get("estimated_time_sec", 0)
+    subject     = question_data.get("_subject", "")
+    topic       = question_data.get("topic", "")
 
-def build_tutor_prompt(
-    question_data: dict,
-    user_answer: Optional[str],
-    proficiency_level: str,
-    time_efficiency: Optional[float],
-    was_marked: bool,
-    answer_changes: int,
-) -> tuple[str, str]:
-    """
-    Build (system_prompt, user_message) for the Gemini explain call.
-    Returns a tuple; both are plain strings.
-    """
-    actual_time   = question_data.get("_actual_time_seconds", 0)
-    estimated     = question_data.get("estimated_time_sec", 0)
-    subject       = question_data.get("_subject", "")
-    topic         = question_data.get("topic", "")
-
-    # ── System prompt ──────────────────────────────────────────────────────────
     system_prompt = f"""You are VYAS, an expert AI tutor for Indian competitive exam preparation (CUET, GATE, JEE, UPSC).
-
-You are generating a personalized explanation for a student.
 
 STUDENT PROFILE:
 - Proficiency Level: {proficiency_level}  (Beginner / Intermediate / Advanced / Expert)
@@ -101,18 +69,12 @@ STUDENT PROFILE:
 - They changed their answer {answer_changes} time(s)
 
 EXPLANATION STYLE RULES:
-- Beginner: Use simple language. Start with a real-world analogy. Be encouraging. Avoid jargon. (150–250 words)
-- Intermediate: Be precise. Show the logic chain. Reference the principle, not just the answer. (100–180 words)
-- Advanced: Be direct. Assume concept knowledge. Focus on the edge case or trick. (60–120 words)
-- Expert: Pose a follow-up challenge. Be peer-level. No hand-holding. (40–80 words + follow-up)
+- Beginner: Simple language, real-world analogy, encouraging. (150-250 words)
+- Intermediate: Precise, logic chain, reference the principle. (100-180 words)
+- Advanced: Direct, assume concept knowledge, focus on edge case. (60-120 words)
+- Expert: Pose follow-up challenge, peer-level. (40-80 words + follow-up)
 
-BEHAVIORAL NOTES:
-- If actual_time < 0.5 * estimated_time AND estimated_time > 0: include a note that the student may have rushed
-- If was_marked_for_review = Yes: acknowledge that the student had doubts
-- If answer_changes >= 2: address the second-guessing pattern
-
-OUTPUT FORMAT:
-Return ONLY valid JSON — no markdown, no preamble, no trailing text. Exactly this schema:
+OUTPUT FORMAT — Return ONLY valid JSON, no markdown, no preamble:
 {{
   "opening": "...",
   "core_concept": "...",
@@ -122,112 +84,87 @@ Return ONLY valid JSON — no markdown, no preamble, no trailing text. Exactly t
   "follow_up": "..."
 }}
 
-Field rules:
-- opening: 1–2 sentences addressing what went wrong (or "you skipped this" if no answer given)
-- core_concept: the underlying principle, explained at the student's level
-- why_correct: why the correct answer is right
-- why_wrong: why the student's answer was wrong (use null if student skipped)
-- memory_anchor: a memorable hook to remember this concept
-- follow_up: a practice question or challenge (use null for Beginner/Intermediate if not helpful)
+- why_wrong: null if student skipped
+- follow_up: null for Beginner/Intermediate if not helpful
+Do NOT invent facts."""
 
-Do NOT invent facts. If uncertain, express it within the explanation."""
-
-    # ── User message ───────────────────────────────────────────────────────────
-    q_text    = question_data.get("question", "")
-    options   = question_data.get("options", {})
-    correct   = question_data.get("correct", "")
-    selected  = user_answer or "Not answered (skipped)"
-
-    options_str = "\n".join(f"{k}) {v}" for k, v in options.items())
-
-    user_message = f"""QUESTION: {q_text}
+    options_str = "\n".join(f"{k}) {v}" for k, v in question_data.get("options", {}).items())
+    user_message = f"""QUESTION: {question_data.get("question", "")}
 
 OPTIONS:
 {options_str}
 
-CORRECT ANSWER: {correct}
-STUDENT SELECTED: {selected}
+CORRECT ANSWER: {question_data.get("correct", "")}
+STUDENT SELECTED: {user_answer or "Not answered (skipped)"}
 
 Generate the explanation now."""
 
     return system_prompt, user_message
 
 
-# ── Gemini API call ────────────────────────────────────────────────────────────
-
 async def call_gemini(system_prompt: str, user_message: str) -> dict:
     """
-    Make an async POST to the Gemini generateContent endpoint.
-    Returns the parsed explanation dict.
-    Raises ValueError on API key/model absence, httpx.HTTPError on API failure,
-    and json.JSONDecodeError if the response isn't valid JSON.
-
-    IMPORTANT: GEMINI_MODEL and GEMINI_API_KEY are read here at call time (not
-    at module import time) so that:
-      - Editing .env and restarting the server always picks up the new values.
-      - A missing/empty env var raises a clear error instead of a silent 404.
+    Call Gemini API. API key URL is NEVER included in raised exceptions.
+    Raises ValueError, GeminiTruncationError, GeminiParseError,
+    httpx.HTTPStatusError, or httpx.TimeoutException.
     """
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    api_key = os.getenv("GEMINI_API_KEY_TUTOR", "").strip()
     if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set in environment variables.")
+        raise ValueError("GEMINI_API_KEY_TUTOR is not configured.")
 
-    # Read model name fresh on every call — never stale after a restart
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+    gemini_model = os.getenv("GEMINI_MODEL_TUTOR", "gemini-2.0-flash").strip()
     if not gemini_model:
-        raise ValueError("GEMINI_MODEL is not set in environment variables.")
+        raise ValueError("GEMINI_MODEL_TUTOR is not configured.")
 
     url = _GEMINI_URL.format(model=gemini_model, key=api_key)
 
     payload = {
-        "system_instruction": {
-            "parts": [{"text": system_prompt}]
-        },
-        "contents": [
-            {"role": "user", "parts": [{"text": user_message}]}
-        ],
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
             "temperature": 0.3,
-            "maxOutputTokens": 1024,
+            "maxOutputTokens": 2048,   # B2: raised from 1024
             "responseMimeType": "application/json",
         },
     }
 
-    async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
+    try:
+        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # B1: log full details server-side; raise sanitised version to caller
+        logger.error(
+            "Gemini tutor HTTP error: status=%s body=%r",
+            exc.response.status_code,
+            exc.response.text[:500],
+        )
+        raise httpx.HTTPStatusError(
+            f"Gemini API returned HTTP {exc.response.status_code}",
+            request=exc.request,
+            response=exc.response,
+        ) from exc
+    except httpx.TimeoutException:
+        logger.error("Gemini tutor request timed out after %.1fs", GEMINI_TIMEOUT)
+        raise
 
     data = response.json()
-    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+    # B2: check finishReason BEFORE touching content
+    check_finish_reason(data)
+    raw_text = extract_raw_text(data)
+    # B3: safe extraction — handles fences, preamble, malformed JSON
+    return _safe_json_extract(raw_text)
 
-    # Strip markdown fences if Gemini wraps the JSON
-    raw_text = raw_text.strip()
-    if raw_text.startswith("```"):
-        parts = raw_text.split("```")
-        # parts[1] starts with optional "json\n", then the content
-        inner = parts[1]
-        if inner.startswith("json"):
-            inner = inner[4:]
-        raw_text = inner.strip()
-
-    return json.loads(raw_text)
-
-
-# ── Cache-aware explanation retrieval ─────────────────────────────────────────
 
 async def get_or_create_explanation(
     db: Session,
-    question_data: dict,          # enriched with _actual_time_seconds, _subject
+    question_data: dict,
     response_row: models.Response,
     proficiency_score: float,
     force_refresh: bool = False,
 ) -> tuple[dict, bool]:
-    """
-    Returns (explanation_dict, was_cache_hit).
-    Checks tutor_cache first; calls Gemini on miss; updates cache.
-    On any Gemini failure, raises the exception — caller handles fallback.
-    """
     correct_answer = question_data.get("correct", "")
-    user_answer    = response_row.selected_option  # may be None
+    user_answer    = response_row.selected_option
     bucket         = get_proficiency_bucket(proficiency_score)
     cache_key      = make_cache_key(
         question_id=response_row.question_id,
@@ -235,10 +172,8 @@ async def get_or_create_explanation(
         user_answer=user_answer,
         correct_answer=correct_answer,
     )
-
     now = datetime.now(timezone.utc)
 
-    # ── Cache lookup ──────────────────────────────────────────────────────────
     if not force_refresh:
         cached = (
             db.query(models.TutorCache)
@@ -249,9 +184,9 @@ async def get_or_create_explanation(
         if cached:
             cached.hit_count += 1
             db.commit()
+            logger.debug("Tutor cache HIT for key=%s", cache_key[:16])
             return cached.explanation_json, True
 
-    # ── Build prompt and call Gemini ──────────────────────────────────────────
     system_prompt, user_message = build_tutor_prompt(
         question_data=question_data,
         user_answer=user_answer,
@@ -261,20 +196,22 @@ async def get_or_create_explanation(
         answer_changes=response_row.answer_changed_count or 0,
     )
 
+    logger.info("Calling Gemini tutor for question_id=%s bucket=%s",
+                response_row.question_id, bucket)
     explanation = await call_gemini(system_prompt, user_message)
 
-    # ── Validate explanation has required fields (apply safe defaults) ─────────
+    if not isinstance(explanation, dict):
+        raise GeminiParseError("Gemini tutor returned a non-dict JSON object.")
+
     for field in ("opening", "core_concept", "why_correct", "memory_anchor"):
         if field not in explanation or not explanation[field]:
             explanation[field] = "Explanation not available for this field."
     explanation.setdefault("why_wrong", None)
     explanation.setdefault("follow_up", None)
 
-    # ── Store in cache ────────────────────────────────────────────────────────
-    expires = now + timedelta(days=CACHE_TTL_DAYS)
-
-    # Upsert: replace if expired or force_refresh
+    expires  = now + timedelta(days=CACHE_TTL_DAYS)
     existing = db.query(models.TutorCache).filter_by(cache_key=cache_key).first()
+
     if existing:
         existing.explanation_json   = explanation
         existing.expires_at         = expires
@@ -297,33 +234,17 @@ async def get_or_create_explanation(
     return explanation, False
 
 
-# ── Behavioral note helper ─────────────────────────────────────────────────────
-
-def build_behavioral_note(
-    response_row: models.Response,
-    question_data: dict,
-) -> Optional[str]:
-    """
-    Produce a short contextual note about the student's behaviour on this question.
-    Returns None if there's nothing notable.
-    """
-    notes = []
-
+def build_behavioral_note(response_row: models.Response, question_data: dict) -> Optional[str]:
+    notes     = []
     estimated = question_data.get("estimated_time_sec") or 0
     actual    = response_row.time_spent_seconds or 0
 
     if estimated > 0 and actual < 0.5 * estimated:
-        notes.append(
-            f"You spent {actual}s (estimated: {estimated}s) — you may have rushed this one."
-        )
-
+        notes.append(f"You spent {actual}s (estimated: {estimated}s) — you may have rushed this one.")
     if response_row.was_marked_for_review:
         notes.append("You marked this for review, indicating you had doubts.")
-
     if (response_row.answer_changed_count or 0) >= 2:
-        notes.append(
-            f"You changed your answer {response_row.answer_changed_count}× — "
-            "trust your first instinct more often."
-        )
+        notes.append(f"You changed your answer {response_row.answer_changed_count}× — "
+                     "trust your first instinct more often.")
 
     return " ".join(notes) if notes else None

@@ -1,0 +1,9 @@
+2026-05-05 06:25:24 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 06:25:25 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 06:25:25 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 06:36:20 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 06:57:25 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 06:57:26 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 06:57:26 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 07:19:53 | INFO     | routers.profile | Creating new profile for user_id=5
+2026-05-05 07:41:35 | INFO     | main | VYAS v0.6 shutting down.

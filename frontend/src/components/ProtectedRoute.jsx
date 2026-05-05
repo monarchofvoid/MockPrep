@@ -1,7 +1,20 @@
-import { Navigate, useLocation } from "react-router-dom";
+/**
+ * ProtectedRoute — guards all authenticated routes.
+ *
+ * FIX v0.6.1: Replaced `return children` with `return <Outlet />`.
+ *
+ * In React Router v6, when a component is used as a *layout route*
+ * (i.e. <Route element={<ProtectedRoute />}> with nested child routes),
+ * the framework renders child routes through the <Outlet /> component —
+ * NOT through `props.children`. `children` is always `undefined` in this
+ * pattern, so the original code silently returned nothing, making every
+ * protected page appear as a blank screen.
+ */
+
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -21,5 +34,6 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  return children;
+  // Renders whichever child route matched (Dashboard, MockBrowser, etc.)
+  return <Outlet />;
 }

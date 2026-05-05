@@ -1,70 +1,60 @@
 """
-VYAS Phase 2B — AI Mock Generator Service
-==========================================
-Generates personalized MCQ mock tests on demand via the Gemini API.
-Questions are validated against the QuestionRenderer schema before storage.
-
-Public API:
-  get_difficulty_distribution(proficiency_score) → dict
-  validate_ai_question(raw, index) → dict (raises ValueError on invalid)
-  build_generation_prompt(exam, subject, difficulty, count,
-                          dist, weak_topics) → (system, user)
-  async generate_questions(exam, subject, difficulty, count,
-                           proficiency_score, weak_topics) → list[dict]
+VYAS v0.6 — AI Mock Generator Service
+======================================
+Fixes applied vs v0.5:
+  B1: API key never exposed in exceptions
+  B3: json.loads replaced with _safe_json_extract
+  B5: finishReason checked (same pattern as tutor service)
+  B6: Granular exception handling
+  P3: print() replaced with logging
 """
 
-import json
+import logging
 import os
-import traceback
 from typing import Optional
 
 import httpx
 
-# ── Configuration ──────────────────────────────────────────────────────────────
-# NOTE: Do NOT read GEMINI_MODEL at module level.
-# It is read fresh inside call_gemini_generate() on every request so that:
-#   1. A server restart after editing .env picks up the new value correctly.
-#   2. A missing env var produces a clear error, not a silent None→404.
-GEMINI_TIMEOUT = 40.0   # generation takes longer than explanation
+from services.gemini_utils import (
+    _safe_json_extract,
+    check_finish_reason,
+    extract_raw_text,
+    GeminiParseError,
+    GeminiTruncationError,
+)
+
+logger = logging.getLogger(__name__)
+
+GEMINI_TIMEOUT = 40.0
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 )
 
+
 # ── Difficulty distributions ───────────────────────────────────────────────────
 
 def get_difficulty_distribution(proficiency_score: float) -> dict:
-    """
-    Return easy/medium/hard question count ratios based on ELO score.
-    If proficiency data is unavailable (score = 400 default), uses Intermediate.
-    Glue between Phase 1 (proficiency) and Phase 2B (AI mock content).
-    """
-    if proficiency_score < 300:     # Beginner
+    if proficiency_score < 300:
         return {"easy": 0.60, "medium": 0.35, "hard": 0.05}
-    elif proficiency_score < 600:   # Intermediate
+    elif proficiency_score < 600:
         return {"easy": 0.20, "medium": 0.55, "hard": 0.25}
-    elif proficiency_score < 800:   # Advanced
+    elif proficiency_score < 800:
         return {"easy": 0.05, "medium": 0.35, "hard": 0.60}
-    else:                           # Expert
+    else:
         return {"easy": 0.00, "medium": 0.20, "hard": 0.80}
 
 
 def counts_from_distribution(total: int, dist: dict) -> dict:
-    """Convert ratio dict to exact integer counts that sum to total."""
     easy   = round(total * dist["easy"])
     hard   = round(total * dist["hard"])
-    medium = total - easy - hard          # ensure sum = total
+    medium = total - easy - hard
     return {"easy": max(0, easy), "medium": max(0, medium), "hard": max(0, hard)}
 
 
 # ── Question validation ────────────────────────────────────────────────────────
 
 def validate_ai_question(raw: dict, index: int) -> dict:
-    """
-    Validate and normalise a single question object from Gemini.
-    Raises ValueError with a clear message on any violation.
-    Applies safe defaults for optional fields.
-    """
     required = ["question", "options", "correct", "explanation", "difficulty", "topic"]
     for field in required:
         if field not in raw or not raw[field]:
@@ -86,9 +76,8 @@ def validate_ai_question(raw: dict, index: int) -> dict:
         )
 
     if raw["difficulty"] not in ("easy", "medium", "hard"):
-        raw["difficulty"] = "medium"    # safe default rather than raising
+        raw["difficulty"] = "medium"
 
-    # Apply safe defaults for optional fields
     raw.setdefault("id",               index + 1)
     raw.setdefault("type",             "mcq")
     raw.setdefault("marks",            4)
@@ -97,8 +86,6 @@ def validate_ai_question(raw: dict, index: int) -> dict:
     raw.setdefault("passage_title",    None)
     raw.setdefault("subtopic",         None)
     raw.setdefault("estimated_time_sec", None)
-
-    # Override id to match 1-based position (Gemini may send wrong ids)
     raw["id"] = index + 1
 
     return raw
@@ -107,16 +94,9 @@ def validate_ai_question(raw: dict, index: int) -> dict:
 # ── Prompt builder ─────────────────────────────────────────────────────────────
 
 def build_generation_prompt(
-    exam: str,
-    subject: str,
-    difficulty: str,      # "auto" uses distribution, else "easy"/"medium"/"hard"
-    count: int,
-    dist: dict,           # {"easy": n, "medium": n, "hard": n}
-    weak_topics: list[str],
+    exam: str, subject: str, difficulty: str, count: int,
+    dist: dict, weak_topics: list[str],
 ) -> tuple[str, str]:
-    """
-    Build (system_prompt, user_message) for the Gemini question generation call.
-    """
     topic_hint = ""
     if weak_topics:
         top3 = ", ".join(weak_topics[:3])
@@ -131,24 +111,21 @@ def build_generation_prompt(
         diff_instruction = f"All {count} questions must be {difficulty} difficulty."
 
     system_prompt = f"""You are an expert question setter for Indian competitive exams ({exam}).
-Your task is to generate high-quality, original MCQ questions for the subject: {subject}.
+Generate high-quality, original MCQ questions for the subject: {subject}.
 
-RULES — you must follow ALL of these exactly:
+RULES:
 1. Generate exactly {count} questions. No more, no less.
 2. {diff_instruction}
 3. Each question must have exactly 4 options labeled A, B, C, D.
 4. The 'correct' field must be one of: A, B, C, or D — and must actually be correct.
-5. All distractors (wrong options) must be plausible — not obviously wrong.
-6. 'explanation' must be 2–4 sentences explaining WHY the correct answer is right.
+5. All distractors must be plausible — not obviously wrong.
+6. 'explanation' must be 2-4 sentences explaining WHY the correct answer is right.
 7. Each question must have a 'topic' field (the sub-topic within {subject}).
 8. Do NOT repeat questions or use trivial true/false phrasing.
-9. Questions must be suitable for {exam} level — neither too easy nor academic.
+9. Questions must be suitable for {exam} level.
 10. Do NOT include any answer hints in the question text itself.{topic_hint}
 
-OUTPUT FORMAT:
-Return ONLY a valid JSON array — no markdown, no preamble, no trailing text.
-The array must contain exactly {count} question objects with this exact schema:
-
+OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
 [
   {{
     "id": 1,
@@ -176,58 +153,62 @@ The array must contain exactly {count} question objects with this exact schema:
 
 async def call_gemini_generate(system_prompt: str, user_message: str) -> list[dict]:
     """
-    Call Gemini to generate questions. Returns a parsed list of raw question dicts.
-    Raises ValueError on missing API key or model, httpx.HTTPError on API failure.
-
-    IMPORTANT: GEMINI_MODEL and GEMINI_API_KEY are read here at call time (not
-    at module import time) so that:
-      - Editing .env and restarting the server always picks up the new values.
-      - A missing/empty env var raises a clear error instead of a silent 404.
+    Call Gemini to generate questions.
+    API key URL is NEVER included in raised exceptions.
+    Raises ValueError, GeminiTruncationError, GeminiParseError,
+    httpx.HTTPStatusError, or httpx.TimeoutException.
     """
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    api_key = os.getenv("GEMINI_API_KEY_MOCK", "").strip()
     if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set in environment variables.")
+        raise ValueError("GEMINI_API_KEY_MOCK is not configured.")
 
-    # Read model name fresh on every call — never stale after a restart
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+    gemini_model = os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash").strip()
     if not gemini_model:
-        raise ValueError("GEMINI_MODEL is not set in environment variables.")
+        raise ValueError("GEMINI_MODEL_MOCK is not configured.")
 
     url = _GEMINI_URL.format(model=gemini_model, key=api_key)
 
     payload = {
-        "system_instruction": {
-            "parts": [{"text": system_prompt}]
-        },
-        "contents": [
-            {"role": "user", "parts": [{"text": user_message}]}
-        ],
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
-            "temperature":      0.7,    # more creative than tutor (0.3)
-            "maxOutputTokens":  8192,   # enough for 20 full questions
+            "temperature":      0.7,
+            "maxOutputTokens":  8192,
             "responseMimeType": "application/json",
         },
     }
 
-    async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
+    try:
+        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # B1: log full details server-side; raise sanitised version
+        logger.error(
+            "Gemini mock HTTP error: status=%s body=%r",
+            exc.response.status_code,
+            exc.response.text[:500],
+        )
+        raise httpx.HTTPStatusError(
+            f"Gemini API returned HTTP {exc.response.status_code}",
+            request=exc.request,
+            response=exc.response,
+        ) from exc
+    except httpx.TimeoutException:
+        logger.error("Gemini mock request timed out after %.1fs", GEMINI_TIMEOUT)
+        raise
 
-    data     = response.json()
-    raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    data = response.json()
 
-    # Strip markdown fences if present
-    if raw_text.startswith("```"):
-        parts    = raw_text.split("```")
-        inner    = parts[1]
-        if inner.startswith("json"):
-            inner = inner[4:]
-        raw_text = inner.strip()
+    # B5: check finishReason BEFORE touching content
+    check_finish_reason(data)
+    raw_text = extract_raw_text(data)
 
-    parsed = json.loads(raw_text)
+    # B3: safe JSON extraction
+    parsed = _safe_json_extract(raw_text)
 
     if not isinstance(parsed, list):
-        raise ValueError(f"Expected a JSON array, got {type(parsed).__name__}")
+        raise GeminiParseError(f"Expected a JSON array, got {type(parsed).__name__}")
 
     return parsed
 
@@ -237,50 +218,43 @@ async def call_gemini_generate(system_prompt: str, user_message: str) -> list[di
 async def generate_questions(
     exam: str,
     subject: str,
-    difficulty: str,       # "auto" | "easy" | "medium" | "hard"
+    difficulty: str,
     count: int,
     proficiency_score: float = 400.0,
     weak_topics: Optional[list[str]] = None,
 ) -> list[dict]:
-    """
-    Full generation pipeline:
-      1. Compute difficulty distribution (uses proficiency if difficulty="auto")
-      2. Build prompt
-      3. Call Gemini
-      4. Validate and normalise each question
-      5. Return validated list
-
-    Raises ValueError or httpx.HTTPError on failure.
-    Count is capped at 20 to avoid token overruns and abuse.
-    """
-    count      = min(count, 20)
+    count       = min(count, 20)
     weak_topics = weak_topics or []
 
     dist   = get_difficulty_distribution(proficiency_score)
     counts = counts_from_distribution(count, dist)
 
     system_prompt, user_message = build_generation_prompt(
-        exam=exam,
-        subject=subject,
-        difficulty=difficulty,
-        count=count,
-        dist=counts,
-        weak_topics=weak_topics,
+        exam=exam, subject=subject, difficulty=difficulty,
+        count=count, dist=counts, weak_topics=weak_topics,
     )
 
+    logger.info(
+        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d",
+        exam, subject, difficulty, count,
+    )
     raw_questions = await call_gemini_generate(system_prompt, user_message)
 
     validated = []
     errors    = []
-    for i, raw in enumerate(raw_questions[:count]):    # never exceed requested count
+    for i, raw in enumerate(raw_questions[:count]):
         try:
             validated.append(validate_ai_question(raw, i))
-        except ValueError as e:
-            errors.append(str(e))
+        except ValueError as exc:
+            errors.append(str(exc))
 
     if errors:
-        # Log validation errors but don't fail the whole generation if most passed
-        print(f"[ai_mock] {len(errors)} validation errors:\n  " + "\n  ".join(errors))
+        # P3: use logger instead of print
+        logger.warning(
+            "AI mock validation errors (%d/%d): %s",
+            len(errors), len(raw_questions),
+            "; ".join(errors[:5]),
+        )
 
     if len(validated) < max(1, count // 2):
         raise ValueError(

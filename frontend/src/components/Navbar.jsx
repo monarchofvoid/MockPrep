@@ -1,59 +1,62 @@
-import { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+/**
+ * VYAS v0.6 — Navbar
+ * FIX: Added VyasLogo before brand name; corrected CSS class references
+ */
+
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import VyasLogo from "./VyasLogo";
 import styles from "../styles/Navbar.module.css";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const navigate         = useNavigate();
+  const location         = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
-  const initials = user?.name
-    ?.split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "V";
+  const isActive = path =>
+    location.pathname === path ? styles.active : "";
 
   return (
-    <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
-      <button className={styles.brand} onClick={() => navigate("/dashboard")}>
-        <VyasLogo variant="gold" size={28} />
+    <nav className={styles.nav}>
+      <Link to="/" className={styles.brand}>
+        <VyasLogo variant="gold" size={30} />
         <span className={styles.brandName}>VYAS</span>
-      </button>
+      </Link>
 
-      {user && (
-        <div className={styles.right}>
-          <div className={styles.links}>
-            <NavLink className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ""}`} to="/dashboard">
+      <div className={styles.links}>
+        {user ? (
+          <>
+            <Link to="/dashboard" className={`${styles.navLink} ${isActive("/dashboard")}`}>
               Dashboard
-            </NavLink>
-            <NavLink className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ""}`} to="/mocks">
+            </Link>
+            <Link to="/mocks" className={`${styles.navLink} ${isActive("/mocks")}`}>
               Papers
-            </NavLink>
-          </div>
-          <div className={styles.userBlock}>
-            <span className={styles.avatar}>{initials}</span>
-            <span className={styles.greeting}>{user.name.split(" ")[0]}</span>
-          </div>
-          <button className={styles.logoutBtn} onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
-      )}
+            </Link>
+            <Link to="/ai-mock" className={`${styles.navLink} ${isActive("/ai-mock")}`}>
+              AI Mock
+            </Link>
+            <Link to="/profile" className={`${styles.navLink} ${isActive("/profile")}`}>
+              Profile
+            </Link>
+            <button onClick={handleLogout} className={styles.logoutBtn}>
+              Sign Out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/about"   className={styles.navLink}>About</Link>
+            <Link to="/contact" className={styles.navLink}>Contact</Link>
+            <button onClick={() => navigate("/")} className={styles.logoutBtn}>
+              Sign In
+            </button>
+          </>
+        )}
+      </div>
     </nav>
   );
 }

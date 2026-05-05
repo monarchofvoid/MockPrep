@@ -1,11 +1,14 @@
 """
-VYAS — Tutor Router
-====================
-Phase 1: GET  /tutor/proficiency
-Phase 2A:     POST /tutor/explain
-              POST /tutor/rate
+VYAS v0.6 — Tutor Router
+=========================
+Fixes applied vs v0.5:
+  B1: Generic Exception in handler replaced with specific types
+  B6: No bare `except Exception` — granular handling
 """
 
+import logging
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -15,11 +18,14 @@ from database import get_db
 from auth import get_current_user
 from services.proficiency import get_proficiency_level
 from services.question_bank import load_question_json
+from services.gemini_utils import GeminiParseError, GeminiTruncationError
 from services.tutor import (
     get_proficiency_bucket,
     get_or_create_explanation,
     build_behavioral_note,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tutor", tags=["Tutor"])
 
@@ -31,10 +37,6 @@ def get_proficiency(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Return the authenticated user's full proficiency profile.
-    One entry per (exam, subject, topic) triplet attempted.
-    """
     rows = (
         db.query(models.UserProficiency)
         .filter_by(user_id=current_user.id)
@@ -45,11 +47,7 @@ def get_proficiency(
         .all()
     )
 
-    if rows:
-        overall_score = round(sum(r.proficiency for r in rows) / len(rows), 2)
-    else:
-        overall_score = 400.0
-
+    overall_score = round(sum(r.proficiency for r in rows) / len(rows), 2) if rows else 400.0
     overall_level = get_proficiency_level(overall_score)
 
     topics = [
@@ -92,20 +90,14 @@ async def tutor_explain(
     db: Session = Depends(get_db),
 ):
     """
-    Generate a personalized AI explanation for a specific question from a past attempt.
-
-    - Only callable on the authenticated user's own attempts.
-    - Only available for wrong or skipped answers (correct answers don't need tutor).
-    - Explanation is proficiency-bucket-aware and cached for 7 days.
-    - Logs the interaction; user can rate via POST /tutor/rate.
+    B1 Fix: Generic Exception replaced with specific types.
+    API key is never exposed in error responses.
     """
-
     # ── Validate attempt ownership ────────────────────────────────────────────
     attempt = db.query(models.Attempt).filter_by(id=body.attempt_id).first()
     if not attempt or attempt.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found.")
 
-    # ── Validate response row exists and was wrong/skipped ────────────────────
     response_row = (
         db.query(models.Response)
         .filter_by(attempt_id=body.attempt_id, question_id=body.question_id)
@@ -122,7 +114,6 @@ async def tutor_explain(
             detail="VYAS Tutor is only available for wrong or skipped answers.",
         )
 
-    # ── Load question data from disk (cached) ─────────────────────────────────
     mock = attempt.mock_test
     if not mock or not mock.json_file_path:
         raise HTTPException(
@@ -145,23 +136,21 @@ async def tutor_explain(
             detail=f"Question {body.question_id} not found in question bank.",
         )
 
-    # ── Enrich question_data with runtime context ──────────────────────────────
-    question_data = dict(question_data)   # shallow copy — don't mutate cache
+    question_data = dict(question_data)
     question_data["_actual_time_seconds"] = response_row.time_spent_seconds or 0
     question_data["_subject"]             = mock.subject or ""
     question_data["_exam"]                = mock.exam or ""
 
-    # ── Get user's proficiency for this topic ─────────────────────────────────
-    topic       = response_row.topic or question_data.get("topic", "General")
-    prof_row    = (
+    topic    = response_row.topic or question_data.get("topic", "General")
+    prof_row = (
         db.query(models.UserProficiency)
         .filter_by(user_id=current_user.id, topic=topic)
         .first()
     )
-    prof_score  = prof_row.proficiency if prof_row else 400.0
-    prof_level  = get_proficiency_bucket(prof_score)
+    prof_score = prof_row.proficiency if prof_row else 400.0
+    prof_level = get_proficiency_bucket(prof_score)
 
-    # ── Get or generate explanation ───────────────────────────────────────────
+    # B1 + B6 Fix: Granular exception handling — never expose API key/URLs
     try:
         explanation_dict, was_cache_hit = await get_or_create_explanation(
             db=db,
@@ -170,19 +159,36 @@ async def tutor_explain(
             proficiency_score=prof_score,
             force_refresh=body.force_refresh,
         )
-    except ValueError as e:
-        # Missing GEMINI_API_KEY
+    except ValueError as exc:
+        # Missing API key or model — safe to surface
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
+            detail=str(exc),
         )
-    except Exception as e:
+    except GeminiTruncationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        )
+    except GeminiParseError as exc:
+        logger.error("Tutor parse error for question_id=%s: %s", body.question_id, exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI service error: {str(e)[:200]}",
+            detail="AI service returned an invalid response. Please retry.",
+        )
+    except httpx.HTTPStatusError as exc:
+        logger.error("Tutor HTTP error: status=%s", exc.response.status_code)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI service error (HTTP {exc.response.status_code}). Please retry.",
+        )
+    except httpx.TimeoutException:
+        logger.error("Tutor request timed out for question_id=%s", body.question_id)
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="AI service timed out. Please retry in a moment.",
         )
 
-    # ── Log interaction ───────────────────────────────────────────────────────
     interaction = models.TutorInteraction(
         user_id             = current_user.id,
         attempt_id          = body.attempt_id,
@@ -194,7 +200,6 @@ async def tutor_explain(
     db.commit()
     db.refresh(interaction)
 
-    # ── Build behavioural note ────────────────────────────────────────────────
     behavioral_note = build_behavioral_note(response_row, question_data)
 
     return schemas.TutorExplainResponse(
@@ -216,10 +221,6 @@ def rate_explanation(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Submit a 1–5 star rating for a tutor explanation.
-    Only the user who triggered the interaction can rate it.
-    """
     if not (1 <= body.rating <= 5):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

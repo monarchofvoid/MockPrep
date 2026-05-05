@@ -192,7 +192,7 @@ export default function LandingPage() {
                 <span>VYAS</span>
               </div>
               <button className={styles.modalClose} onClick={closeModal} disabled={loading} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 

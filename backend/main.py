@@ -1,79 +1,95 @@
 """
-VYAS — Virtual Yield Assessment System
-FastAPI Backend — All 5 modules wired together:
-  A. Question Bank loader
-  B. Mock Test Engine (session start)
-  C. Response Tracking (data in)
-  D. Evaluation Engine (scoring)
-  E. Analytics/Dashboard (data out)
+VYAS v0.6 — FastAPI Backend
+==============================
+Changes vs v0.5:
+  P3: Replaced @app.on_event("startup") with modern lifespan context manager
+  P3: Replaced print() with logging throughout
+  D6: CORS origins read from config.py (production-safe)
+  D2: Profile router included
+  Logging configured at startup
 """
 
 import json
-import os
+import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import List, Optional
 from pathlib import Path
+from typing import List, Optional
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
-
-load_dotenv()
 
 import models
 import schemas
+from config import AppConfig
 from database import engine, get_db
+from logging_config import configure_logging
 from services.evaluation import evaluate
 from services.analytics import get_user_analytics
 from auth import get_current_user, hash_password, verify_password, create_access_token
 from routers.password_reset import router as password_reset_router
 from routers.contact import router as contact_router
-# Phase 1: Tutor router (proficiency endpoint; Phase 2A adds explain/rate)
 from routers.tutor import router as tutor_router
-# Phase 1: Proficiency background task
-from services.proficiency import update_user_proficiency
-# Phase 2A: question bank loader extracted to its own module (avoids circular import)
-from services.question_bank import load_question_json, QB_ROOT, _QB_CACHE, load_ai_mock_questions
-# Phase 2B: AI Mock router
 from routers.ai_mock import router as ai_mock_router
-# Phase 3: Recommendation engine
+from routers.profile import router as profile_router
+from services.proficiency import update_user_proficiency
+from services.question_bank import load_question_json, QB_ROOT, _QB_CACHE, load_ai_mock_questions
 from services.recommendations import get_recommendations
+
+# Configure logging before anything else
+configure_logging()
+logger = logging.getLogger(__name__)
+
+
+# ── Lifespan (P3 fix: replaces deprecated @app.on_event("startup")) ───────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks, yield control, then run shutdown tasks."""
+    logger.info("VYAS v0.6 starting up...")
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_mock_tests(db)
+        logger.info("Mock test seeding complete. QB_ROOT=%s", QB_ROOT)
+    finally:
+        db.close()
+
+    yield  # Application runs here
+
+    logger.info("VYAS v0.6 shutting down.")
+
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="VYAS API",
     description="Virtual Yield Assessment System — question banks, test sessions, evaluation, analytics",
-    version="2.0.0",
+    version="0.6.0",
+    lifespan=lifespan,
 )
 
-# Parse allowed origins from env (comma-separated) or use defaults
-_raw_origins = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000",
-)
-ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
+# D6: CORS read from config (validates wildcard in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=AppConfig.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create all tables on startup
 models.Base.metadata.create_all(bind=engine)
 
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(password_reset_router)
 app.include_router(contact_router)
-app.include_router(tutor_router)   # Phase 1: /tutor/proficiency; Phase 2A: /tutor/explain, /tutor/rate
-app.include_router(ai_mock_router) # Phase 2B: /ai-mock/generate, /ai-mock/history
-
-# Phase 2A: QB_ROOT, _QB_CACHE, and load_question_json are now in
-# services/question_bank.py. Imported at top of file.
+app.include_router(tutor_router)
+app.include_router(ai_mock_router)
+app.include_router(profile_router)   # D2: new profile endpoints
 
 
 def _make_mock_id(relative_path: Path) -> str:
@@ -84,16 +100,21 @@ def _make_mock_id(relative_path: Path) -> str:
 def seed_mock_tests(db: Session):
     """
     Auto-discover every JSON file in question_bank/ and upsert into mock_tests.
-    Mirrors the standalone seed.py logic so both routes work identically.
+    P3 fix: uses logger instead of print/silent failures.
     """
     if not QB_ROOT.exists():
+        logger.warning("QB_ROOT does not exist: %s — skipping seed", QB_ROOT)
         return
 
+    seeded = 0
+    errors = 0
     for json_path in sorted(QB_ROOT.rglob("*.json")):
         try:
             with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Skipping %s: %s", json_path.name, exc)
+            errors += 1
             continue
 
         relative    = json_path.relative_to(QB_ROOT)
@@ -117,6 +138,7 @@ def seed_mock_tests(db: Session):
         existing = db.query(models.MockTest).filter_by(id=mock_id).first()
         if not existing:
             db.add(models.MockTest(**entry))
+            seeded += 1
         else:
             changed = any(str(getattr(existing, k)) != str(v) for k, v in entry.items() if k != "id")
             if changed:
@@ -124,30 +146,20 @@ def seed_mock_tests(db: Session):
                     setattr(existing, k, v)
 
     db.commit()
-
-
-@app.on_event("startup")
-def startup_event():
-    from database import SessionLocal
-    db = SessionLocal()
-    try:
-        seed_mock_tests(db)
-    finally:
-        db.close()
+    logger.info("Seed complete: %d mock tests processed, %d errors", seeded, errors)
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "2.0.0", "app": "VYAS"}
+    return {"status": "ok", "version": "0.6.0", "app": "VYAS"}
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
 @app.post("/auth/signup", response_model=schemas.TokenResponse, status_code=201, tags=["Auth"])
 def signup(body: schemas.SignupRequest, db: Session = Depends(get_db)):
-    """Register a new user and return a JWT token immediately."""
     if db.query(models.User).filter_by(email=body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     user = models.User(
@@ -159,12 +171,12 @@ def signup(body: schemas.SignupRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     token = create_access_token({"sub": str(user.id)})
+    logger.info("New user registered: id=%s", user.id)
     return schemas.TokenResponse(access_token=token, user=user)
 
 
 @app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Auth"])
 def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate with email + password. Returns JWT token."""
     user = db.query(models.User).filter_by(email=body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
@@ -179,7 +191,6 @@ def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/auth/me", response_model=schemas.UserOut, tags=["Auth"])
 def get_me(current_user: models.User = Depends(get_current_user)):
-    """Return the currently authenticated user's profile."""
     return current_user
 
 
@@ -190,7 +201,6 @@ def list_mocks(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return all available papers/mock tests. Requires authentication."""
     return db.query(models.MockTest).all()
 
 
@@ -200,7 +210,6 @@ def get_mock(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return metadata for a single mock test."""
     mock = db.query(models.MockTest).filter_by(id=mock_id).first()
     if not mock:
         raise HTTPException(status_code=404, detail="Mock test not found")
@@ -215,10 +224,6 @@ def start_attempt(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    User selects a paper → create an Attempt row → return questions (without answers).
-    user_id is always taken from the verified JWT — never from request body.
-    """
     mock = db.query(models.MockTest).filter_by(id=body.mock_id).first()
     if not mock:
         raise HTTPException(status_code=404, detail="Mock test not found")
@@ -232,7 +237,7 @@ def start_attempt(
         load_ai_mock_questions(db, mock.id)
         if mock.is_ai_generated
         else load_question_json(mock.json_file_path)
-    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
+    )
     questions_out = [
         schemas.QuestionOut(
             id=q["id"],
@@ -263,14 +268,10 @@ def start_attempt(
 @app.post("/submit-attempt", response_model=schemas.ResultsResponse, tags=["Test Engine"])
 def submit_attempt(
     body: schemas.SubmitAttemptRequest,
-    background_tasks: BackgroundTasks,          # Phase 1: proficiency update trigger
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    Receive full question states from frontend → evaluate → persist → return results.
-    Validates that the attempt belongs to the requesting user.
-    """
     attempt = db.query(models.Attempt).filter_by(id=body.attempt_id).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Attempt not found")
@@ -284,9 +285,8 @@ def submit_attempt(
         load_ai_mock_questions(db, mock.id)
         if mock.is_ai_generated
         else load_question_json(mock.json_file_path)
-    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
+    )
 
-    # ── Module D: Run evaluation ──────────────────────────────────────────────
     result = evaluate(
         attempt_id=attempt.id,
         mock_data=mock_data,
@@ -294,7 +294,6 @@ def submit_attempt(
         time_taken_seconds=body.time_taken_seconds,
     )
 
-    # ── Persist attempt summary ───────────────────────────────────────────────
     attempt.score                 = result["_db_score"]
     attempt.total_marks           = result["_db_total_marks"]
     attempt.correct_count         = result["_db_correct"]
@@ -306,18 +305,14 @@ def submit_attempt(
     attempt.avg_time_per_question = result["_db_avg_time"]
     attempt.submitted_at          = datetime.now(timezone.utc)
 
-    # ── Persist per-question responses (Module C) ─────────────────────────────
-    # Phase 0: build a lookup from question_id → raw question dict so we can
-    # pull subtopic, question_category, estimated_time_sec for enriched storage.
     q_raw_map = {q["id"]: q for q in mock_data["questions"]}
-
     state_map = {qs.question_id: qs for qs in body.question_states}
+
     for qr in result["question_reviews"]:
-        qs  = state_map.get(qr["question_id"])
+        qs    = state_map.get(qr["question_id"])
         raw_q = q_raw_map.get(qr["question_id"], {})
 
-        # ── Phase 0: compute time efficiency ratio ────────────────────────────
-        estimated = raw_q.get("estimated_time_sec")         # may be None
+        estimated = raw_q.get("estimated_time_sec")
         actual    = qs.time_spent_seconds if qs else 0
         time_eff  = round(actual / estimated, 3) if estimated and estimated > 0 else None
 
@@ -333,7 +328,6 @@ def submit_attempt(
             was_marked_for_review=qs.was_marked_for_review if qs else False,
             topic=qr["topic"],
             difficulty=qr["difficulty"],
-            # ── Phase 0 new columns ───────────────────────────────────────────
             subtopic=raw_q.get("subtopic"),
             question_category=raw_q.get("question_category"),
             estimated_time_sec=estimated,
@@ -344,10 +338,11 @@ def submit_attempt(
     db.commit()
     db.refresh(attempt)
 
-    # ── Phase 1: Trigger proficiency update (non-blocking) ───────────────────
-    # Runs AFTER the response is sent — never delays the user.
-    # Creates its own session internally; safe even if the main session closes.
     background_tasks.add_task(update_user_proficiency, current_user.id, attempt.id)
+    logger.info(
+        "Attempt %s submitted by user %s: score=%.1f/%s",
+        attempt.id, current_user.id, result["_db_score"], result["_db_total_marks"],
+    )
 
     return schemas.ResultsResponse(
         attempt_id=attempt.id,
@@ -368,8 +363,7 @@ def submit_attempt(
             schemas.TopicPerformance(**tp) for tp in result["topic_performance"]
         ],
         question_reviews=[
-            schemas.QuestionReview(**qr)
-            for qr in result["question_reviews"]
+            schemas.QuestionReview(**qr) for qr in result["question_reviews"]
         ],
     )
 
@@ -382,7 +376,6 @@ def get_results(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Retrieve persisted results for a completed attempt. Must own the attempt."""
     attempt = db.query(models.Attempt).filter_by(id=attempt_id).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Attempt not found")
@@ -396,7 +389,7 @@ def get_results(
         load_ai_mock_questions(db, mock.id)
         if mock.is_ai_generated
         else load_question_json(mock.json_file_path)
-    )   # Phase 2B: AI mocks load from DB; regular mocks load from disk
+    )
     q_map = {q["id"]: q for q in mock_data["questions"]}
 
     topic_stats: dict = {}
@@ -462,14 +455,13 @@ def get_results(
     )
 
 
-# ─── Phase 5 — Convenience "me" routes ───────────────────────────────────────
+# ─── Analytics & Recommendations ─────────────────────────────────────────────
 
 @app.get("/analytics/me", response_model=schemas.UserAnalytics, tags=["Analytics"])
 def my_analytics(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Return aggregated performance data for the authenticated user."""
     return get_user_analytics(db, current_user.id)
 
 
@@ -479,16 +471,8 @@ def my_recommendations(
     db: Session = Depends(get_db),
 ):
     """
-    Phase 3: Return personalised mock recommendations based on proficiency data.
-
-    Algorithm (pure computation — no AI calls):
-      - Weak subjects (ELO < 450) → surface untried mocks in that subject
-      - Top exam familiarity → prefer same exam series
-      - Already strong subjects (ELO > 600) → deprioritised
-      - AI mock suggestion → weakest topic + difficulty matching proficiency level
-
-    Safe for new users: returns empty lists and 'no proficiency data' flag.
-    Response is fast (<50ms) — no external calls.
+    D1 Fix: Recommendations are now hard-filtered by preparing_exam from UserProfile.
+    Algorithm is fast (<50ms) — no external calls.
     """
     return get_recommendations(db, current_user.id)
 
@@ -498,7 +482,6 @@ def my_attempts(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all attempts for the authenticated user with summary stats."""
     attempts = (
         db.query(models.Attempt)
         .filter_by(user_id=current_user.id)
@@ -519,12 +502,12 @@ def my_attempts(
             "time_taken_seconds": a.time_taken_seconds,
             "submitted": a.submitted_at is not None,
             "started_at": a.started_at,
-            "is_ai_generated": mt.is_ai_generated if mt else False,  # Phase 3
+            "is_ai_generated": mt.is_ai_generated if mt else False,
         })
     return result
 
 
-# ─── Legacy user endpoints (kept for backwards compatibility) ─────────────────
+# ─── Legacy endpoints (backwards compatibility) ───────────────────────────────
 
 @app.get("/analytics/{user_id}", response_model=schemas.UserAnalytics, tags=["Analytics"])
 def user_analytics(
@@ -532,7 +515,6 @@ def user_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Return aggregated performance data for a user. Must be own data."""
     if user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     return get_user_analytics(db, user_id)
@@ -540,5 +522,4 @@ def user_analytics(
 
 @app.get("/users/me", response_model=schemas.UserOut, tags=["Users"])
 def get_current_user_profile(current_user: models.User = Depends(get_current_user)):
-    """Return the authenticated user's profile."""
     return current_user

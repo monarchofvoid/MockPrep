@@ -1,41 +1,36 @@
 """
-VYAS Phase 3 — Recommendation Engine
-======================================
-Pure computation on existing tables (user_proficiency + attempts + mock_tests).
-No AI calls. No new DB tables.
-
-Public API:
-  get_recommendations(db, user_id) → RecommendationPayload
-    Returns:
-      - ranked list of recommended static mocks (by subject match + not yet attempted)
-      - weak_topics list (proficiency < 40% accuracy, sorted by severity)
-      - next_ai_mock suggestion (subject + difficulty based on weakest area)
-      - overall_level + overall_score from proficiency
+VYAS v0.6 — Recommendation Engine
+====================================
+Fixes applied vs v0.5:
+  D1: Exam becomes a HARD FILTER (not a scoring bonus).
+      Recommendations now only surface mocks matching the user's preparing_exam
+      from their UserProfile. Falls back to all exams if no profile exists.
 
 Algorithm:
-  1. Pull user proficiency rows (from Phase 1)
-  2. Identify weak subjects (avg proficiency < 450) and strong (> 600)
-  3. Pull all static mocks not yet attempted by the user
-  4. Score each mock:
-       +30 if mock.subject is in weak_subjects       (needs work)
-       +20 if mock.subject already has some attempts  (continuation)
-       +10 if mock.exam matches the most-attempted exam (familiarity)
-       -10 if mock.subject is in strong_subjects      (already solid)
-  5. Return top 5 ranked mocks
-  6. Identify top 3 weak topics (lowest accuracy, min 3 attempts)
-  7. Suggest next AI mock: weakest subject + proficiency-derived difficulty
+  1. Pull user proficiency rows
+  2. Read user's preparing_exam from UserProfile (HARD FILTER)
+  3. Identify weak subjects (avg proficiency < 450) and strong (> 600)
+  4. Pull static mocks NOT yet attempted, filtered by preparing_exam
+  5. Score each mock:
+       +30 if mock.subject is in weak_subjects
+       +20 if mock.subject already has some attempts (continuation)
+       -10 if mock.subject is in strong_subjects
+  6. Return top 5 ranked mocks
+  7. Weak topics list for Dashboard
+  8. AI mock suggestion: weakest subject + proficiency-derived difficulty
 """
 
+import logging
 from typing import Optional
+
 from sqlalchemy.orm import Session
 
 import models
 
+logger = logging.getLogger(__name__)
 
-# ── Data structures (plain dicts — schemas are in schemas.py) ─────────────────
 
 def _subject_proficiency_map(prof_rows: list) -> dict[str, float]:
-    """Average ELO score per subject across all topic rows."""
     subs: dict[str, list[float]] = {}
     for r in prof_rows:
         subs.setdefault(r.subject, []).append(r.proficiency)
@@ -43,7 +38,6 @@ def _subject_proficiency_map(prof_rows: list) -> dict[str, float]:
 
 
 def _attempted_mock_ids(db: Session, user_id: int) -> set[str]:
-    """Return mock IDs the user has submitted at least one attempt for."""
     rows = (
         db.query(models.Attempt.mock_id)
         .filter(
@@ -56,52 +50,33 @@ def _attempted_mock_ids(db: Session, user_id: int) -> set[str]:
     return {r.mock_id for r in rows}
 
 
-def _most_attempted_exam(db: Session, user_id: int) -> Optional[str]:
-    """Return the exam the user has attempted most frequently."""
-    from sqlalchemy import func
-
-    result = (
-        db.query(models.MockTest.exam, func.count(models.Attempt.id).label("cnt"))
-        .join(models.Attempt, models.Attempt.mock_id == models.MockTest.id)
-        .filter(models.Attempt.user_id == user_id)
-        .group_by(models.MockTest.exam)
-        .order_by(func.count(models.Attempt.id).desc())
-        .first()
-    )
-    return result.exam if result else None
-
-
 def _score_mock(
     mock: "models.MockTest",
     weak_subjects: set[str],
     strong_subjects: set[str],
     subject_attempt_counts: dict[str, int],
-    top_exam: Optional[str],
 ) -> float:
-    """Heuristic relevance score for a single mock."""
+    """
+    D1 Fix: Exam is now a HARD FILTER (applied before scoring),
+    so we no longer add exam-familiarity bonus here.
+    """
     score = 0.0
 
     if mock.subject in weak_subjects:
-        score += 30.0   # user needs work here
+        score += 30.0
     elif mock.subject in strong_subjects:
-        score -= 10.0   # user already solid here
+        score -= 10.0
 
     if subject_attempt_counts.get(mock.subject, 0) > 0:
         score += 20.0   # already in the user's groove for this subject
 
-    if top_exam and mock.exam == top_exam:
-        score += 10.0   # exam familiarity
-
     return score
 
-
-# ── Main recommendation function ──────────────────────────────────────────────
 
 def get_recommendations(db: Session, user_id: int) -> dict:
     """
     Compute the full recommendation payload for a user.
     Returns a plain dict matching the RecommendationResponse schema.
-    Safe to call for new users (returns sane defaults when no proficiency data).
     """
     # ── Step 1: Pull proficiency data ─────────────────────────────────────────
     prof_rows = (
@@ -113,23 +88,21 @@ def get_recommendations(db: Session, user_id: int) -> dict:
     subject_prof = _subject_proficiency_map(prof_rows)
 
     # ── Step 2: Classify subjects ─────────────────────────────────────────────
-    # Weak < 450 ELO, Strong > 600 ELO  (Intermediate boundary = 400)
-    weak_subjects  = {s for s, score in subject_prof.items() if score < 450}
+    weak_subjects   = {s for s, score in subject_prof.items() if score < 450}
     strong_subjects = {s for s, score in subject_prof.items() if score > 600}
 
     # ── Step 3: Overall proficiency summary ───────────────────────────────────
-    if prof_rows:
-        overall_score = round(sum(r.proficiency for r in prof_rows) / len(prof_rows), 1)
-    else:
-        overall_score = 400.0
-
+    overall_score = (
+        round(sum(r.proficiency for r in prof_rows) / len(prof_rows), 1)
+        if prof_rows else 400.0
+    )
     overall_level = _level_from_score(overall_score)
 
     # ── Step 4: Weak topics (for Dashboard + AI Mock targeting) ───────────────
     weak_topic_rows = sorted(
         [r for r in prof_rows if r.accuracy_rate < 0.50 and r.total_count >= 3],
         key=lambda r: r.accuracy_rate,
-    )[:5]   # top 5 weakest
+    )[:5]
 
     weak_topics = [
         {
@@ -142,11 +115,23 @@ def get_recommendations(db: Session, user_id: int) -> dict:
         for r in weak_topic_rows
     ]
 
-    # ── Step 5: Static mock recommendations ──────────────────────────────────
-    attempted_ids = _attempted_mock_ids(db, user_id)
-    top_exam      = _most_attempted_exam(db, user_id)
+    # ── Step 5: D1 — Read exam preference (HARD FILTER) ──────────────────────
+    profile = (
+        db.query(models.UserProfile)
+        .filter_by(user_id=user_id)
+        .first()
+    )
+    preparing_exam: Optional[str] = profile.preparing_exam if profile else None
 
-    # Count how many times user has attempted each subject (any mock)
+    if preparing_exam:
+        logger.debug(
+            "Recommendations hard-filtered by preparing_exam=%s for user=%s",
+            preparing_exam, user_id,
+        )
+
+    # ── Step 6: Static mock recommendations ───────────────────────────────────
+    attempted_ids = _attempted_mock_ids(db, user_id)
+
     all_attempts = (
         db.query(models.Attempt, models.MockTest)
         .join(models.MockTest, models.MockTest.id == models.Attempt.mock_id)
@@ -157,20 +142,26 @@ def get_recommendations(db: Session, user_id: int) -> dict:
     for att, mock in all_attempts:
         subject_attempt_counts[mock.subject] = subject_attempt_counts.get(mock.subject, 0) + 1
 
-    # Candidate mocks: static, not yet submitted
-    candidates = (
-        db.query(models.MockTest)
-        .filter(
-            models.MockTest.is_ai_generated == False,
-            models.MockTest.id.notin_(attempted_ids) if attempted_ids else True,
-        )
-        .all()
+    # Build base query
+    candidate_query = db.query(models.MockTest).filter(
+        models.MockTest.is_ai_generated == False,
     )
+    if attempted_ids:
+        candidate_query = candidate_query.filter(
+            models.MockTest.id.notin_(attempted_ids)
+        )
+
+    # D1 HARD FILTER: only show mocks for the exam the user is preparing for
+    if preparing_exam:
+        candidate_query = candidate_query.filter(
+            models.MockTest.exam == preparing_exam
+        )
+
+    candidates = candidate_query.all()
 
     scored = sorted(
         candidates,
-        key=lambda m: _score_mock(m, weak_subjects, strong_subjects,
-                                   subject_attempt_counts, top_exam),
+        key=lambda m: _score_mock(m, weak_subjects, strong_subjects, subject_attempt_counts),
         reverse=True,
     )
 
@@ -183,16 +174,15 @@ def get_recommendations(db: Session, user_id: int) -> dict:
             "duration_minutes": m.duration_minutes,
             "total_marks":      m.total_marks,
             "question_count":   m.question_count,
-            "reason":           _reason(m, weak_subjects, strong_subjects, top_exam),
+            "reason":           _reason(m, weak_subjects, strong_subjects, preparing_exam),
         }
         for m in scored[:5]
     ]
 
-    # ── Step 6: AI mock suggestion ────────────────────────────────────────────
-    # Suggest working on the weakest subject at difficulty matching their level
+    # ── Step 7: AI mock suggestion ────────────────────────────────────────────
     ai_suggestion = None
     if weak_topic_rows:
-        worst     = weak_topic_rows[0]
+        worst      = weak_topic_rows[0]
         prof_score = worst.proficiency
         if prof_score < 300:
             suggested_diff = "easy"
@@ -202,25 +192,22 @@ def get_recommendations(db: Session, user_id: int) -> dict:
             suggested_diff = "hard"
 
         ai_suggestion = {
-            "exam":           worst.exam,
-            "subject":        worst.subject,
-            "topic":          worst.topic,
-            "difficulty":     suggested_diff,
-            "reason":         (
+            "exam":       worst.exam,
+            "subject":    worst.subject,
+            "topic":      worst.topic,
+            "difficulty": suggested_diff,
+            "reason": (
                 f"{worst.topic} accuracy is {round(worst.accuracy_rate * 100)}% — "
                 f"practice {suggested_diff} questions to build confidence."
             ),
         }
-    elif not prof_rows:
-        # Cold start — new user with no data yet
-        ai_suggestion = None   # no suggestion until they have data
 
     return {
-        "overall_level":      overall_level,
-        "overall_score":      overall_score,
-        "weak_topics":        weak_topics,
-        "recommended_mocks":  recommended_mocks,
-        "ai_mock_suggestion": ai_suggestion,
+        "overall_level":        overall_level,
+        "overall_score":        overall_score,
+        "weak_topics":          weak_topics,
+        "recommended_mocks":    recommended_mocks,
+        "ai_mock_suggestion":   ai_suggestion,
         "has_proficiency_data": len(prof_rows) > 0,
     }
 
@@ -238,13 +225,12 @@ def _reason(
     mock: "models.MockTest",
     weak_subjects: set[str],
     strong_subjects: set[str],
-    top_exam: Optional[str],
+    preparing_exam: Optional[str],
 ) -> str:
-    """Human-readable reason string for the recommendation."""
     if mock.subject in weak_subjects:
         return f"Your {mock.subject} proficiency is low — this paper will help you improve."
-    if mock.exam == top_exam and mock.subject not in strong_subjects:
-        return f"Matches your primary exam ({mock.exam}) — untried paper in this series."
     if mock.subject in strong_subjects:
         return f"You're strong here — use this to maintain your {mock.subject} edge."
+    if preparing_exam:
+        return f"Untried {preparing_exam} paper — expanding your coverage for this exam."
     return "Untried paper — expanding your coverage builds well-rounded preparation."

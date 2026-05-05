@@ -1,3 +1,10 @@
+"""
+VYAS v0.6 — Pydantic Schemas
+================================
+Changes vs v0.5:
+  D2: Added UserProfileOut, UserProfileUpdate schemas
+"""
+
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -34,6 +41,33 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─── User Profile (D2) ────────────────────────────────────────────────────────
+
+VALID_EXAMS   = ("CUET", "GATE", "JEE", "UPSC", "NEET", "CAT", "OTHER")
+VALID_AVATARS = ("owl", "fox", "bear", "cat", "robot", "astronaut", "penguin", "tiger")
+
+class UserProfileOut(BaseModel):
+    user_id:         int
+    preparing_exam:  Optional[str]
+    target_year:     Optional[int]
+    subject_focus:   Optional[str]
+    avatar:          Optional[str]
+    daily_goal_mins: Optional[int]
+    bio:             Optional[str]
+    updated_at:      Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+class UserProfileUpdate(BaseModel):
+    preparing_exam:  Optional[str]  = None
+    target_year:     Optional[int]  = None
+    subject_focus:   Optional[str]  = None
+    avatar:          Optional[str]  = None
+    daily_goal_mins: Optional[int]  = None
+    bio:             Optional[str]  = None
 
 
 # ─── Mock Test (paper metadata) ───────────────────────────────────────────────
@@ -74,12 +108,12 @@ class QuestionWithAnswer(QuestionOut):
 # ─── Start Attempt ────────────────────────────────────────────────────────────
 
 class StartAttemptRequest(BaseModel):
-    mock_id: str      # user_id comes from JWT — never trust the body
+    mock_id: str
 
 class StartAttemptResponse(BaseModel):
     attempt_id: int
     mock_id: str
-    questions: List[QuestionOut]   # without answers
+    questions: List[QuestionOut]
     duration_minutes: int
     total_marks: float
 
@@ -87,9 +121,8 @@ class StartAttemptResponse(BaseModel):
 # ─── Submit Attempt ───────────────────────────────────────────────────────────
 
 class QuestionStateIn(BaseModel):
-    """Per-question tracking data sent from the frontend on submit."""
     question_id: int
-    selected_option: Optional[str] = None   # "A" | "B" | "C" | "D" | null
+    selected_option: Optional[str] = None
     time_spent_seconds: int = 0
     visit_count: int = 0
     answer_changed_count: int = 0
@@ -132,8 +165,6 @@ class ResultsResponse(BaseModel):
     mock_id: str
     subject: str
     year: str
-
-    # Summary
     score: float
     total_marks: float
     score_percentage: float
@@ -144,13 +175,11 @@ class ResultsResponse(BaseModel):
     attempt_rate: float
     time_taken_seconds: int
     avg_time_per_question: float
-
-    # Breakdowns
     topic_performance: List[TopicPerformance]
     question_reviews: List[QuestionReview]
 
 
-# ─── Analytics (user history) ─────────────────────────────────────────────────
+# ─── Analytics ────────────────────────────────────────────────────────────────
 
 class AttemptSummary(BaseModel):
     attempt_id: int
@@ -172,7 +201,7 @@ class TopicMastery(BaseModel):
     accuracy: float
     correct:  int
     total:    int
-    strength: str   # "strong" | "average" | "weak"
+    strength: str
 
 class UserAnalytics(BaseModel):
     user_id: int
@@ -201,19 +230,17 @@ class ResetPasswordRequest(BaseModel):
 # ─── Phase 1: Proficiency Engine schemas ──────────────────────────────────────
 
 class DifficultyProfile(BaseModel):
-    easy:   float   # accuracy 0.0–1.0
+    easy:   float
     medium: float
     hard:   float
 
-
 class TopicProficiency(BaseModel):
-    """Per-topic row from user_proficiency table."""
     exam:        str
     subject:     str
     topic:       str
     subtopic:    Optional[str]
-    proficiency: float          # ELO score 0–1000
-    level:       str            # Beginner / Intermediate / Advanced / Expert
+    proficiency: float
+    level:       str
     accuracy_rate:        float
     total_count:          int
     correct_count:        int
@@ -224,9 +251,7 @@ class TopicProficiency(BaseModel):
     class Config:
         from_attributes = True
 
-
 class UserProficiencyResponse(BaseModel):
-    """Response for GET /tutor/proficiency."""
     user_id:       int
     overall_level: str
     overall_score: float
@@ -239,18 +264,15 @@ class UserProficiencyResponse(BaseModel):
 class TutorExplainRequest(BaseModel):
     attempt_id:    int
     question_id:   int
-    force_refresh: bool = False   # bypass cache (admin/debug use)
-
+    force_refresh: bool = False
 
 class TutorExplanation(BaseModel):
-    """Structured explanation from Gemini."""
     opening:       str
     core_concept:  str
     why_correct:   str
-    why_wrong:     Optional[str]   # None when student skipped
+    why_wrong:     Optional[str]
     memory_anchor: str
-    follow_up:     Optional[str]   # None for Beginner/Intermediate
-
+    follow_up:     Optional[str]
 
 class TutorExplainResponse(BaseModel):
     interaction_id:      int
@@ -261,11 +283,9 @@ class TutorExplainResponse(BaseModel):
     behavioral_note:     Optional[str]
     explanation:         TutorExplanation
 
-
 class TutorRateRequest(BaseModel):
     interaction_id: int
-    rating:         int   # 1–5
-
+    rating:         int
 
 class TutorRateResponse(BaseModel):
     interaction_id: int
@@ -276,12 +296,11 @@ class TutorRateResponse(BaseModel):
 # ─── Phase 2B: AI Mock Generator Schemas ──────────────────────────────────────
 
 class GenerateAIMockRequest(BaseModel):
-    exam:             str
-    subject:          str
-    difficulty:       str = "auto"   # "auto" | "easy" | "medium" | "hard"
-    question_count:   int = 10
-    use_proficiency:  bool = True     # use Phase 1 data if available
-
+    exam:            str
+    subject:         str
+    difficulty:      str = "auto"
+    question_count:  int = 10
+    use_proficiency: bool = True
 
 class AIMockHistoryItem(BaseModel):
     mock_id:        str
@@ -297,7 +316,6 @@ class AIMockHistoryItem(BaseModel):
     class Config:
         from_attributes = True
 
-
 class AIMockHistoryResponse(BaseModel):
     ai_mocks: List[AIMockHistoryItem]
 
@@ -308,9 +326,8 @@ class WeakTopic(BaseModel):
     subject:      str
     topic:        str
     proficiency:  float
-    accuracy_rate: float   # percentage (0–100)
+    accuracy_rate: float
     total_count:  int
-
 
 class RecommendedMock(BaseModel):
     mock_id:          str
@@ -322,14 +339,12 @@ class RecommendedMock(BaseModel):
     question_count:   int
     reason:           str
 
-
 class AIMockSuggestion(BaseModel):
     exam:       str
     subject:    str
     topic:      str
     difficulty: str
     reason:     str
-
 
 class RecommendationResponse(BaseModel):
     overall_level:        str

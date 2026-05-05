@@ -135,3 +135,10 @@ export const getAIMockHistory = () => request("GET", "/ai-mock/history");
 // ── Phase 3: Recommendations ──────────────────────────────────────────────────
 
 export const getRecommendations = () => request("GET", "/recommendations");
+
+// ── User Profile (v0.6) ───────────────────────────────────────────────────────
+
+export const getProfile = () => request("GET", "/profile/me");
+
+export const updateProfile = (profileData) =>
+  request("PUT", "/profile/me", profileData);

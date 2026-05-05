@@ -428,7 +428,7 @@
   .ctaInner { padding: var(--space-6) var(--space-5); }
 }
 
-/* ── Footer nav layout ────────────────────────────────────────────────────────── */
+/* ── Footer nav layout ────────────────────────────────────────────────────── */
 
 .footerLeft {
   display: flex;
@@ -454,7 +454,7 @@
 
 .footerLink:hover { color: var(--vyas-gold); }
 
-/* ── Auth modal consent line ─────────────────────────────────────────────────── */
+/* ── Auth modal consent line ──────────────────────────────────────────────── */
 
 .consentText {
   font-size: 11px;

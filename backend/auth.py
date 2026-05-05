@@ -1,9 +1,12 @@
 """
-VYAS Authentication Module
-Handles JWT creation/validation and password hashing.
+VYAS v0.6 — Authentication Module
+====================================
+Changes vs v0.5:
+  D4: SECRET_KEY validation now delegates to config.py
+  D5: Comment added explaining missing refresh token system
+  P3: Import from config instead of raw os.getenv
 """
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -15,28 +18,17 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
+from config import AppConfig
 
 # ── Config ────────────────────────────────────────────────────────────────────
-_secret = os.getenv("SECRET_KEY")
-if not _secret:
-    import sys
-    _env = os.getenv("ENVIRONMENT", "development").lower()
-    if _env in ("production", "prod"):
-        raise RuntimeError(
-            "SECRET_KEY environment variable must be set in production. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
-        )
-    # Development fallback — safe locally, loudly warned
-    import warnings
-    warnings.warn(
-        "SECRET_KEY is not set. Using insecure default — do NOT deploy this to production.",
-        stacklevel=1,
-    )
-    _secret = "vyas-change-this-in-production-use-a-long-random-string"
-
-SECRET_KEY = _secret
-ALGORITHM  = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7   # 7 days
+# D4: SECRET_KEY validation: raises RuntimeError in production if missing,
+#     warns loudly in development (never silently uses an insecure default).
+# D5 Note: This system uses long-lived access tokens (7 days by default).
+#    There is no refresh token mechanism in v0.6. When a token expires, the user
+#    must log in again. A refresh token system is planned for v0.7.
+SECRET_KEY = AppConfig.SECRET_KEY
+ALGORITHM  = AppConfig.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = AppConfig.ACCESS_TOKEN_EXPIRE_MINUTES
 
 pwd_context   = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
