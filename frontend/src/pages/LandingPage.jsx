@@ -1,61 +1,230 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login as apiLogin, signup as apiSignup } from "../api/client";
 import VyasLogo from "../components/VyasLogo";
 import styles from "../styles/Landing.module.css";
 
+/* ─── Data ─────────────────────────────────────────────────────────────────── */
+
 const FEATURES = [
   {
     kicker: "Simulate",
     title: "Real exam conditions",
     desc: "Timed papers, structured navigation, review states, and submission discipline built into every attempt.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
   },
   {
     kicker: "Diagnose",
     title: "Performance intelligence",
     desc: "Score, accuracy, pace, and topic mastery are tracked across attempts so progress becomes visible.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6"  y1="20" x2="6"  y2="14" />
+        <line x1="2"  y1="20" x2="22" y2="20" />
+      </svg>
+    ),
   },
   {
     kicker: "Review",
     title: "Clear solution analysis",
     desc: "Every result opens into question-level review with correct answers, explanations, and behaviour signals.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <line x1="11" y1="8"  x2="11" y2="14" />
+        <line x1="8"  y1="11" x2="14" y2="11" />
+      </svg>
+    ),
   },
   {
     kicker: "Ascend",
     title: "Focused improvement",
     desc: "Weak areas surface naturally, helping learners spend their next session where it matters most.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
   },
 ];
 
 const EXAMS = ["CUET", "GATE", "CAT", "JEE", "UPSC"];
 
+const STATS = [
+  { value: 10,  suffix: "+",  label: "Mock Papers",    mono: true },
+  { value: 700, suffix: "+",  label: "Questions",      mono: true },
+  { value: 100, suffix: "%",  label: "Free to start",  mono: true },
+];
+
+const HOW_IT_WORKS = [
+  {
+    step: "01",
+    title: "Choose your exam",
+    desc: "Browse mock papers across UPSC, GATE, CAT, JEE and CUET. Pick your challenge.",
+  },
+  {
+    step: "02",
+    title: "Train under pressure",
+    desc: "Attempt tests in real exam conditions — timed, structured, and discipline-enforced from question one.",
+  },
+  {
+    step: "03",
+    title: "Ascend with insight",
+    desc: "Review every answer, study your patterns. VYAS surfaces exactly where to focus next.",
+  },
+];
+
+const TRUST_ITEMS = ["Free to start", "No credit card", "AI-powered", "Secure & private"];
+
+/* ─── Hooks ─────────────────────────────────────────────────────────────────── */
+
+/** Adds a CSS class when element scrolls into view */
+function useScrollReveal(threshold = 0.15) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+
+  return [ref, visible];
+}
+
+/** Animates a number from 0 → target when `active` becomes true */
+function useCountUp(target, duration = 1400, active = false) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    let start = null;
+    let raf;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const pct = Math.min((ts - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - pct, 3);
+      setCount(Math.round(eased * target));
+      if (pct < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration, active]);
+
+  return count;
+}
+
+/* ─── Sub-components ────────────────────────────────────────────────────────── */
+
+function StatCounter({ value, suffix, label }) {
+  const [ref, visible] = useScrollReveal(0.3);
+  const count = useCountUp(value, 1200, visible);
+  return (
+    <div ref={ref} className={`${styles.statItem} ${visible ? styles.statVisible : ""}`}>
+      <span className={styles.statValue}>
+        {count}{suffix}
+      </span>
+      <span className={styles.statLabel}>{label}</span>
+    </div>
+  );
+}
+
+function FeatureCard({ feature, index }) {
+  const [ref, visible] = useScrollReveal(0.1);
+  return (
+    <article
+      ref={ref}
+      className={`${styles.featureCard} ${visible ? styles.cardVisible : ""}`}
+      style={{ "--card-delay": `${index * 80}ms` }}
+    >
+      <div className={styles.featureIconWrap}>
+        {feature.icon}
+      </div>
+      <span className={styles.featureKicker}>{feature.kicker}</span>
+      <h3 className={styles.featureTitle}>{feature.title}</h3>
+      <p className={styles.featureDesc}>{feature.desc}</p>
+    </article>
+  );
+}
+
+function StepCard({ step, index }) {
+  const [ref, visible] = useScrollReveal(0.15);
+  return (
+    <div
+      ref={ref}
+      className={`${styles.step} ${visible ? styles.stepVisible : ""}`}
+      style={{ "--step-delay": `${index * 120}ms` }}
+    >
+      <div className={styles.stepNumber}>{step.step}</div>
+      <div className={styles.stepContent}>
+        <h3 className={styles.stepTitle}>{step.title}</h3>
+        <p className={styles.stepDesc}>{step.desc}</p>
+      </div>
+      {index < HOW_IT_WORKS.length - 1 && (
+        <div className={styles.stepConnector} aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Component ────────────────────────────────────────────────────────── */
+
 export default function LandingPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
 
+  /* auth modal state ─────────────────────────────────────── */
   const [modalOpen, setModalOpen] = useState(false);
   const [tab, setTab] = useState("login");
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* cycling exam pill ────────────────────────────────────── */
+  const [activeExam, setActiveExam] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setActiveExam((p) => (p + 1) % EXAMS.length), 1800);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     if (user) navigate("/dashboard", { replace: true });
   }, [user, navigate]);
 
-  const openModal = (defaultTab = "login") => {
+  /* scroll-reveal refs for hero elements ─────────────────── */
+  const [heroRef, heroVisible] = useScrollReveal(0.05);
+  const [aiRef, aiVisible] = useScrollReveal(0.1);
+  const [ctaRef, ctaVisible] = useScrollReveal(0.1);
+
+  /* modal handlers ───────────────────────────────────────── */
+  const openModal = useCallback((defaultTab = "login") => {
     setTab(defaultTab);
     setError("");
     setFormData({ name: "", email: "", password: "" });
     setModalOpen(true);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     if (loading) return;
     setModalOpen(false);
     setError("");
-  };
+  }, [loading]);
 
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -64,7 +233,6 @@ export default function LandingPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       if (tab === "signup" && !formData.name.trim()) {
         setError("Please enter your full name.");
@@ -76,11 +244,10 @@ export default function LandingPage() {
         setLoading(false);
         return;
       }
-
-      const payload = tab === "login"
-        ? await apiLogin(formData.email, formData.password)
-        : await apiSignup(formData.name.trim(), formData.email, formData.password);
-
+      const payload =
+        tab === "login"
+          ? await apiLogin(formData.email, formData.password)
+          : await apiSignup(formData.name.trim(), formData.email, formData.password);
       login(payload);
       navigate("/dashboard");
     } catch (err) {
@@ -90,8 +257,11 @@ export default function LandingPage() {
     }
   };
 
+  /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
     <div className={styles.page}>
+
+      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.brand}>
@@ -110,18 +280,49 @@ export default function LandingPage() {
       </header>
 
       <main>
+
+        {/* ══ HERO ════════════════════════════════════════════════════════════ */}
         <section className={styles.hero}>
-          <div className={styles.heroInner}>
-            <VyasLogo variant="gold" size={120} animate className={styles.heroLogo} />
-            <h1 className={styles.heroTitle}>Ascend with Intelligence</h1>
-            <p className={styles.heroSub}>
-              VYAS brings disciplined mock practice, precise analytics, and elegant review workflows into one aspirational learning platform.
-            </p>
-            <div className={styles.examPills}>
-              {EXAMS.map((exam) => (
-                <span key={exam} className={styles.examPill}>{exam}</span>
+          {/* atmospheric background elements */}
+          <div className={styles.heroBgGrid} aria-hidden="true" />
+          <div className={styles.heroBgOrb1} aria-hidden="true" />
+          <div className={styles.heroBgOrb2} aria-hidden="true" />
+
+          <div ref={heroRef} className={`${styles.heroInner} ${heroVisible ? styles.heroVisible : ""}`}>
+            <VyasLogo variant="gold" size={108} animate className={styles.heroLogo} />
+
+            {/* trust chips */}
+            <div className={styles.trustRow}>
+              {TRUST_ITEMS.map((t) => (
+                <span key={t} className={styles.trustChip}>
+                  <span className={styles.trustDot} aria-hidden="true" />
+                  {t}
+                </span>
               ))}
             </div>
+
+            <h1 className={styles.heroTitle}>
+              Ascend with<br />
+              <span className={styles.heroTitleAccent}>Intelligence</span>
+            </h1>
+
+            <p className={styles.heroSub}>
+              VYAS brings disciplined mock practice, precise analytics, and elegant review
+              workflows into one aspirational learning platform.
+            </p>
+
+            {/* exam pills — active one pulsed */}
+            <div className={styles.examPills}>
+              {EXAMS.map((exam, i) => (
+                <span
+                  key={exam}
+                  className={`${styles.examPill} ${i === activeExam ? styles.examPillActive : ""}`}
+                >
+                  {exam}
+                </span>
+              ))}
+            </div>
+
             <div className={styles.heroCtas}>
               <button className={styles.primaryCta} onClick={() => openModal("signup")}>
                 Start practising free →
@@ -130,43 +331,161 @@ export default function LandingPage() {
                 Continue ascent
               </button>
             </div>
+
+            <div className={styles.scrollHint} aria-hidden="true">
+              <span className={styles.scrollLine} />
+              <span className={styles.scrollText}>scroll to explore</span>
+            </div>
           </div>
         </section>
 
-        <section className={styles.features}>
-          <div className={styles.featuresInner}>
+        {/* ══ STATS ═══════════════════════════════════════════════════════════ */}
+        <section className={styles.statsSection}>
+          <div className={styles.statsInner}>
+            {STATS.map((s) => (
+              <StatCounter key={s.label} value={s.value} suffix={s.suffix} label={s.label} />
+            ))}
+          </div>
+        </section>
+
+        {/* ══ HOW IT WORKS ════════════════════════════════════════════════════ */}
+        <section className={styles.howSection}>
+          <div className={styles.howInner}>
             <div className={styles.sectionHeader}>
-              <span className={styles.sectionKicker}>Practice system</span>
-              <h2 className={styles.sectionTitle}>Built for deliberate preparation</h2>
+              <span className={styles.sectionKicker}>The journey</span>
+              <h2 className={styles.sectionTitle}>Three steps to the top</h2>
+              <p className={styles.sectionSub}>
+                From choosing your exam to surfacing hidden weaknesses — VYAS guides every step with precision.
+              </p>
             </div>
-            <div className={styles.featureGrid}>
-              {FEATURES.map((feature) => (
-                <article key={feature.title} className={styles.featureCard}>
-                  <span className={styles.featureKicker}>{feature.kicker}</span>
-                  <h3 className={styles.featureTitle}>{feature.title}</h3>
-                  <p className={styles.featureDesc}>{feature.desc}</p>
-                </article>
+            <div className={styles.stepsRow}>
+              {HOW_IT_WORKS.map((step, i) => (
+                <StepCard key={step.step} step={step} index={i} />
               ))}
             </div>
           </div>
         </section>
 
-        <section className={styles.statsBar}>
-          <span>10 papers</span>
-          <span>700+ questions</span>
-          <span>Real exam conditions</span>
-        </section>
-
-        <section className={styles.ctaBanner}>
-          <div className={styles.ctaInner}>
-            <h2 className={styles.ctaTitle}>Train with clarity. Rise with discipline.</h2>
-            <button className={styles.ctaBtn} onClick={() => openModal("signup")}>
-              Start practising free →
-            </button>
+        {/* ══ FEATURES ════════════════════════════════════════════════════════ */}
+        <section className={styles.features}>
+          <div className={styles.featuresInner}>
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionKicker}>Practice system</span>
+              <h2 className={styles.sectionTitle}>Built for deliberate preparation</h2>
+              <p className={styles.sectionSub}>
+                Every feature is designed around one goal: measurable improvement per hour of practice.
+              </p>
+            </div>
+            <div className={styles.featureGrid}>
+              {FEATURES.map((feature, i) => (
+                <FeatureCard key={feature.title} feature={feature} index={i} />
+              ))}
+            </div>
           </div>
         </section>
+
+        {/* ══ AI SPOTLIGHT ════════════════════════════════════════════════════ */}
+        <section className={styles.aiSection}>
+          <div ref={aiRef} className={`${styles.aiInner} ${aiVisible ? styles.aiVisible : ""}`}>
+            <div className={styles.aiContent}>
+              <span className={styles.sectionKicker}>New · AI Generator</span>
+              <h2 className={styles.aiTitle}>
+                Never run out of<br />practice material
+              </h2>
+              <p className={styles.aiDesc}>
+                VYAS's AI Mock Generator creates fresh, exam-relevant questions on demand —
+                calibrated to your proficiency level and targeted at your weakest topics.
+                Infinite practice. Zero repetition.
+              </p>
+              <ul className={styles.aiFeatureList}>
+                <li className={styles.aiFeatureItem}>
+                  <span className={styles.aiCheck} aria-hidden="true">✦</span>
+                  Topic-targeted generation
+                </li>
+                <li className={styles.aiFeatureItem}>
+                  <span className={styles.aiCheck} aria-hidden="true">✦</span>
+                  Difficulty calibrated to your level
+                </li>
+                <li className={styles.aiFeatureItem}>
+                  <span className={styles.aiCheck} aria-hidden="true">✦</span>
+                  Instant explanations &amp; solutions
+                </li>
+                <li className={styles.aiFeatureItem}>
+                  <span className={styles.aiCheck} aria-hidden="true">✦</span>
+                  Synced with your performance data
+                </li>
+              </ul>
+              <button className={styles.primaryCta} onClick={() => openModal("signup")}>
+                Try AI generator free →
+              </button>
+            </div>
+
+            <div className={styles.aiVisual} aria-hidden="true">
+              <div className={styles.aiCard}>
+                <div className={styles.aiCardHeader}>
+                  <span className={styles.aiCardDot} />
+                  <span className={styles.aiCardDot} />
+                  <span className={styles.aiCardDot} />
+                  <span className={styles.aiCardTitle}>AI Mock · Generating</span>
+                </div>
+                <div className={styles.aiCardBody}>
+                  <div className={styles.aiLine} style={{ "--w": "90%" }} />
+                  <div className={styles.aiLine} style={{ "--w": "75%" }} />
+                  <div className={styles.aiLine} style={{ "--w": "60%" }} />
+                  <div className={styles.aiOptionRow}>
+                    <div className={styles.aiOption}>A</div>
+                    <div className={styles.aiOptionBar} style={{ "--w": "82%" }} />
+                  </div>
+                  <div className={styles.aiOptionRow}>
+                    <div className={`${styles.aiOption} ${styles.aiOptionCorrect}`}>B</div>
+                    <div className={`${styles.aiOptionBar} ${styles.aiOptionBarCorrect}`} style={{ "--w": "95%" }} />
+                  </div>
+                  <div className={styles.aiOptionRow}>
+                    <div className={styles.aiOption}>C</div>
+                    <div className={styles.aiOptionBar} style={{ "--w": "55%" }} />
+                  </div>
+                  <div className={styles.aiOptionRow}>
+                    <div className={styles.aiOption}>D</div>
+                    <div className={styles.aiOptionBar} style={{ "--w": "40%" }} />
+                  </div>
+                </div>
+                <div className={styles.aiCardFooter}>
+                  <span className={styles.aiTag}>UPSC GS-I</span>
+                  <span className={styles.aiTag}>History</span>
+                  <span className={styles.aiTag}>Medium</span>
+                </div>
+              </div>
+              {/* ambient glow */}
+              <div className={styles.aiGlow} />
+            </div>
+          </div>
+        </section>
+
+        {/* ══ CTA BANNER ══════════════════════════════════════════════════════ */}
+        <section className={styles.ctaBanner}>
+          <div ref={ctaRef} className={`${styles.ctaInner} ${ctaVisible ? styles.ctaVisible : ""}`}>
+            <div className={styles.ctaTextGroup}>
+              <span className={styles.ctaKicker}>Ready to ascend?</span>
+              <h2 className={styles.ctaTitle}>Train with clarity.<br />Rise with discipline.</h2>
+              <p className={styles.ctaSub}>
+                Join aspirants who choose precision over guesswork.
+                Your first mock test is free — always.
+              </p>
+            </div>
+            <div className={styles.ctaActions}>
+              <button className={styles.ctaBtn} onClick={() => openModal("signup")}>
+                Start practising free →
+              </button>
+              <button className={styles.ctaSecondaryBtn} onClick={() => openModal("login")}>
+                Already a member? Sign in
+              </button>
+            </div>
+          </div>
+        </section>
+
       </main>
 
+      {/* ══ FOOTER ═════════════════════════════════════════════════════════════ */}
       <footer className={styles.footer}>
         <div className={styles.footerLeft}>
           <VyasLogo variant="gold" size={30} />
@@ -183,6 +502,7 @@ export default function LandingPage() {
         </nav>
       </footer>
 
+      {/* ══ AUTH MODAL ══════════════════════════════════════════════════════════ */}
       {modalOpen && (
         <div className={styles.overlay} onClick={closeModal}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -191,7 +511,12 @@ export default function LandingPage() {
                 <VyasLogo variant="gold" size={40} />
                 <span>VYAS</span>
               </div>
-              <button className={styles.modalClose} onClick={closeModal} disabled={loading} aria-label="Close">
+              <button
+                className={styles.modalClose}
+                onClick={closeModal}
+                disabled={loading}
+                aria-label="Close"
+              >
                 ✕
               </button>
             </div>

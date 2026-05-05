@@ -18,3 +18,22 @@
 2026-05-05 08:27:54 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
 2026-05-05 08:28:10 | INFO     | services.tutor | Calling Gemini tutor for question_id=3 bucket=Intermediate
 2026-05-05 08:47:13 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 12:53:29 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 12:53:31 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 12:53:31 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 12:58:24 | ERROR    | services.email | Brevo HTTP 401 for <vyas.suppot@gmail.com>: {"message":"API Key is not enabled","code":"unauthorized"}
+
+2026-05-05 12:58:24 | ERROR    | routers.contact | Contact email delivery failed for Abhinav SIngh <sinabhinav19@gmail.com>. Message may still be in DB.
+2026-05-05 13:00:33 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 13:01:53 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 13:01:55 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 13:01:55 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 13:03:16 | ERROR    | services.email | Brevo HTTP 401 for <support@vyasmock.online>: {"message":"API Key is not enabled","code":"unauthorized"}
+
+2026-05-05 13:03:16 | ERROR    | routers.contact | Contact email delivery failed for Abhinav Singh <sinabhinav19@gmail.com>. Message may still be in DB.
+2026-05-05 13:04:48 | INFO     | main | VYAS v0.6 shutting down.
+2026-05-05 13:05:03 | INFO     | main | VYAS v0.6 starting up...
+2026-05-05 13:05:04 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-05 13:05:04 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-05 13:05:51 | INFO     | services.email | Email sent via Brevo → support@vyasmock.online | messageId: <202605050735.76030844299@smtp-relay.mailin.fr> | subject: VYAS Contact: Abhinav Singh
+2026-05-05 13:06:36 | INFO     | main | VYAS v0.6 shutting down.
