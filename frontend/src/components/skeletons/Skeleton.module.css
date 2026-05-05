@@ -1,0 +1,506 @@
+/* ─────────────────────────────────────────────────────────────────
+   VYAS Skeleton Loading System
+   All skeleton shapes are defined here, imported per-component.
+   The shimmer gradient uses CSS custom properties so it
+   automatically respects the dark theme defined in global.css.
+───────────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -800px 0; }
+  100% { background-position:  800px 0; }
+}
+
+/* ── Base shimmer block ────────────────────────────────────────── */
+.block {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2)         25%,
+    var(--surface-3)         50%,
+    var(--surface-2)         75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+/* ── Stat Card Skeleton ─────────────────────────────────────────── */
+.statCard {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.statLabel {
+  height: 10px;
+  width: 55%;
+  margin-bottom: var(--space-3);
+}
+
+.statValue {
+  height: 34px;
+  width: 40%;
+  margin-bottom: var(--space-2);
+}
+
+.statSub {
+  height: 11px;
+  width: 75%;
+}
+
+/* ── Stats row layout ───────────────────────────────────────────── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Chart panel skeleton ───────────────────────────────────────── */
+.panel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.panelTitle {
+  height: 18px;
+  width: 44%;
+  margin-bottom: var(--space-2);
+}
+
+.panelSub {
+  height: 12px;
+  width: 70%;
+  margin-bottom: var(--space-4);
+}
+
+.chartBox {
+  height: 310px;
+  border-radius: var(--radius-md);
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Section skeleton ───────────────────────────────────────────── */
+.section {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid rgba(212,168,67,0.08);
+}
+
+.sectionTitle {
+  height: 18px;
+  width: 36%;
+  margin-bottom: var(--space-2);
+}
+
+.sectionSub {
+  height: 12px;
+  width: 62%;
+}
+
+.sectionBtn {
+  height: 36px;
+  width: 110px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+/* ── Table skeleton ─────────────────────────────────────────────── */
+.tableHeader {
+  display: flex;
+  gap: 20px;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.tableHeaderCell {
+  height: 10px;
+  flex: 1;
+}
+
+.tableRow {
+  display: flex;
+  gap: 20px;
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: center;
+}
+
+.tableCell {
+  height: 14px;
+  flex: 1;
+}
+
+.tableCellBold {
+  height: 14px;
+  flex: 1.4;
+}
+
+.tableCellSmall {
+  height: 24px;
+  width: 80px;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+/* ── Mock card skeleton ─────────────────────────────────────────── */
+.mockGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.mockCard {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(26,26,26,0.9), rgba(17,17,17,0.9));
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  gap: var(--space-3);
+}
+
+.mockCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.mockBadge {
+  height: 26px;
+  width: 68px;
+  border-radius: 999px;
+}
+
+.mockDifficulty {
+  height: 26px;
+  width: 72px;
+  border-radius: 999px;
+}
+
+.mockTitle {
+  height: 22px;
+  width: 78%;
+}
+
+.mockYear {
+  height: 14px;
+  width: 42%;
+}
+
+.mockMetaRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.mockMetaBox {
+  height: 56px;
+  border-radius: var(--radius-md);
+}
+
+.mockBtn {
+  margin-top: auto;
+  height: 44px;
+  border-radius: var(--radius-md);
+}
+
+/* ── Results page skeletons ─────────────────────────────────────── */
+.scoreHero {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  padding: var(--space-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: center;
+  margin-bottom: var(--space-5);
+}
+
+.scoreCircle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.scoreBreakdownSkel {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+}
+
+.scoreBreakItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.scoreBreakVal {
+  height: 32px;
+  width: 40px;
+  border-radius: var(--radius-sm);
+}
+
+.scoreBreakLbl {
+  height: 12px;
+  width: 52px;
+}
+
+.scoreStatsSkel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-4);
+  flex: 2;
+  min-width: 220px;
+}
+
+.scoreStatItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scoreStatLabel {
+  height: 11px;
+  width: 72%;
+}
+
+.scoreStatValue {
+  height: 18px;
+  width: 88%;
+}
+
+/* ── Topic card skeletons ───────────────────────────────────────── */
+.topicGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.topicCard {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.topicName {
+  height: 16px;
+  width: 70%;
+}
+
+.topicPct {
+  height: 16px;
+  width: 36px;
+}
+
+.topicBar {
+  height: 6px;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.topicDetail {
+  height: 12px;
+  width: 60%;
+}
+
+/* ── Profile skeleton ───────────────────────────────────────────── */
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  padding: var(--space-6) var(--space-6) 0;
+}
+
+.avatarCircle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profileTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.profileTitle {
+  height: 28px;
+  width: 42%;
+}
+
+.profileSub {
+  height: 14px;
+  width: 68%;
+}
+
+.profileSection {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.profileSectionTitle {
+  height: 18px;
+  width: 38%;
+  margin-bottom: var(--space-4);
+}
+
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.avatarBtn {
+  height: 68px;
+  border-radius: var(--radius-md);
+}
+
+.formField {
+  height: 46px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+}
+
+.formLabel {
+  height: 12px;
+  width: 40%;
+  margin-bottom: var(--space-2);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.textarea {
+  height: 90px;
+  border-radius: var(--radius-md);
+}
+
+/* ── AI Mock history skeleton ───────────────────────────────────── */
+.historyCard {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(26,26,26,0.82), rgba(17,17,17,0.88));
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.historyLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.historySubject {
+  height: 16px;
+  width: 65%;
+}
+
+.historyMeta {
+  height: 12px;
+  width: 45%;
+}
+
+.historyRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.historyScore {
+  height: 20px;
+  width: 44px;
+  border-radius: var(--radius-sm);
+}
+
+.historyBtn {
+  height: 30px;
+  width: 88px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .statsRow,
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .mockGrid { grid-template-columns: 1fr; }
+  .topicGrid { grid-template-columns: 1fr 1fr; }
+  .avatarGrid { grid-template-columns: repeat(4, 1fr); }
+  .formRow { grid-template-columns: 1fr; }
+  .scoreHero { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+  .avatarGrid { grid-template-columns: repeat(4, 1fr); }
+  .topicGrid { grid-template-columns: 1fr; }
+}

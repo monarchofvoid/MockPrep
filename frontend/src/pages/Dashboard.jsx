@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { getMyAnalytics, getMyAttempts, getRecommendations } from "../api/client";  // Phase 3: +getRecommendations
 import Navbar from "../components/Navbar";
+import DashboardSkeleton from "../components/skeletons/DashboardSkeleton";
 import styles from "../styles/Dashboard.module.css";
 
 function StatCard({ label, value, sub, tone = "gold" }) {
@@ -169,12 +170,7 @@ export default function Dashboard() {
           </button>
         </section>
 
-        {loading && (
-          <div className={styles.center}>
-            <div className="spinner" />
-            <p className={styles.loadingText}>Loading your analytics...</p>
-          </div>
-        )}
+        {loading && <DashboardSkeleton />}
 
         {error && !loading && (
           <div className={styles.errorBox}>

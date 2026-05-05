@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { generateAIMock, getAIMockHistory, getRecommendations } from "../api/client";  // Phase 3: +getRecommendations
 import Navbar from "../components/Navbar";
+import HistorySkeleton from "../components/skeletons/HistorySkeleton";
 import styles from "../styles/AIMockGeneratorPage.module.css";
 
 // ── Static option lists ────────────────────────────────────────────────────────
@@ -300,9 +301,7 @@ export default function AIMockGeneratorPage() {
             <h2 className={styles.panelTitle}>Your AI Mock History</h2>
 
             {historyLoading ? (
-              <div className={styles.historyLoading}>
-                <div className="spinner" />
-              </div>
+              <HistorySkeleton />
             ) : history.length === 0 ? (
               <div className={styles.historyEmpty}>
                 <span className={styles.emptyIcon}>📋</span>

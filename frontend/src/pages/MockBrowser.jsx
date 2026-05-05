@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMocks, startAttempt } from "../api/client";
 import Navbar from "../components/Navbar";
+import MockBrowserSkeleton from "../components/skeletons/MockBrowserSkeleton";
 import styles from "../styles/MockBrowser.module.css";
 import aiStyles from "../styles/AIMockBanner.module.css";   // Phase 2B
 
@@ -133,12 +134,7 @@ export default function MockBrowser() {
           </div>
         )}
 
-        {loading && (
-          <div className={styles.center}>
-            <div className="spinner" />
-            <p className={styles.loadingText}>Loading papers...</p>
-          </div>
-        )}
+        {loading && <MockBrowserSkeleton />}
 
         {!loading && !error && (
           <>

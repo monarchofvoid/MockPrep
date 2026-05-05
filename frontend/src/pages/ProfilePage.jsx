@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getProfile, updateProfile } from "../api/client";
 import Navbar from "../components/Navbar";
+import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
 import styles from "../styles/ProfilePage.module.css";
 
 const EXAMS   = ["CUET", "GATE", "JEE", "UPSC", "NEET", "CAT", "OTHER"];
@@ -98,10 +99,7 @@ export default function ProfilePage() {
     return (
       <div className={styles.page}>
         <Navbar />
-        <div className={styles.loadingWrap}>
-          <div className={styles.spinner} />
-          <p>Loading your profile…</p>
-        </div>
+        <ProfileSkeleton />
       </div>
     );
   }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getResults } from "../api/client";
 import Navbar from "../components/Navbar";
 import TutorPanel from "../components/TutorPanel";   // Phase 2A
+import ResultsSkeleton from "../components/skeletons/ResultsSkeleton";
 import styles from "../styles/ResultsPage.module.css";
 import QuestionRenderer from "../components/QuestionRenderer";
 
@@ -94,10 +95,19 @@ export default function ResultsPage() {
   if (loading) return (
     <div className={styles.page}>
       <Navbar />
-      <div className={styles.center}>
-        <div className="spinner" />
-        <p className={styles.loadingText}>Loading your results…</p>
-      </div>
+      <main className={styles.main}>
+        {/* Keep page header shell so the page doesn't flash blank */}
+        <div className={styles.pageHeader} style={{ marginBottom: 24 }}>
+          <div>
+            <button className={styles.backBtn} onClick={() => navigate("/dashboard")}>
+              Dashboard
+            </button>
+            <div style={{ height: 32, width: 260, background: "var(--surface-2)", borderRadius: 6, marginTop: 8, animation: "none" }} />
+            <div style={{ height: 14, width: 140, background: "var(--surface-2)", borderRadius: 4, marginTop: 8 }} />
+          </div>
+        </div>
+        <ResultsSkeleton />
+      </main>
     </div>
   );
 
@@ -349,7 +359,7 @@ export default function ResultsPage() {
       </main>
       <div className={styles.bottomCtas}>
         <button onClick={() => navigate("/mocks")}>Try another paper</button>
-        <button onClick={() => setTab("review")}>Review weak topics</button>
+        <button onClick={() => setTab("/results")}>Review weak topics</button>
       </div>
     </div>
   );
