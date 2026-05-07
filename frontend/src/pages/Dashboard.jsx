@@ -195,16 +195,37 @@ export default function Dashboard() {
                 sub="Correct among attempted"
                 tone="green"
               />
-              {/* Phase 3: Overall proficiency score card */}
-              {recommendations?.has_proficiency_data && (
+              {/* VYAS Level: show whenever we have attempts OR proficiency data */}
+              {recommendations && (analytics.total_attempts > 0 || recommendations.has_proficiency_data) && (
                 <StatCard
                   label="VYAS Level"
                   value={recommendations.overall_level}
-                  sub={`ELO ${recommendations.overall_score.toFixed(0)} · based on ${recommendations.weak_topics.length + (recommendations.recommended_mocks.length > 0 ? recommendations.recommended_mocks.length : 0)} signals`}
+                  sub={
+                    recommendations.total_signals > 0
+                      ? `ELO ${recommendations.overall_score.toFixed(0)} · ${recommendations.total_signals} signal${recommendations.total_signals !== 1 ? "s" : ""}`
+                      : "Complete attempts to build your rank"
+                  }
                   tone="gold"
                 />
               )}
             </section>
+
+            {/* ── Onboarding card: exam has no papers or all papers done ───── */}
+            {recommendations?.onboarding_card && (
+              <div className={styles.coldStartBox}>
+                <span className={styles.vyasGlyph}>✦</span>
+                <div>
+                  <span className={styles.aiSuggTitle}>{recommendations.onboarding_card.title}</span>
+                  <span className={styles.aiSuggDesc}>{recommendations.onboarding_card.message}</span>
+                </div>
+                <button
+                  className={styles.aiSuggBtn}
+                  onClick={() => navigate(recommendations.onboarding_card.cta_url)}
+                >
+                  {recommendations.onboarding_card.cta}
+                </button>
+              </div>
+            )}
 
             {/* ── Phase 3: Proficiency Weak Spots ──────────────────────────── */}
             {recommendations?.has_proficiency_data && recommendations.weak_topics.length > 0 && (
@@ -258,6 +279,7 @@ export default function Dashboard() {
                     <div key={m.mock_id} className={styles.recCard}>
                       <div className={styles.recCardTop}>
                         <span className={styles.recExam}>{m.exam}</span>
+                        {m.is_ai_generated && <span className={styles.aiBadgeInline}>✦ AI</span>}
                         <span className={styles.recMeta}>{m.question_count}q · {m.duration_minutes}m</span>
                       </div>
                       <div className={styles.recSubject}>{m.subject}</div>
@@ -294,14 +316,15 @@ export default function Dashboard() {
               </section>
             )}
 
-            {/* ── Phase 3: New user cold-start CTA ─────────────────────────── */}
-            {recommendations && !recommendations.has_proficiency_data && attempts.length > 0 && (
+            {/* ── Cold-start: has attempts but proficiency still processing ── */}
+            {recommendations && !recommendations.has_proficiency_data && attempts.length > 0 && !recommendations.onboarding_card && (
               <div className={styles.coldStartBox}>
                 <span className={styles.aiSuggGlyph}>✦</span>
                 <div>
-                  <span className={styles.aiSuggTitle}>Unlock personalised recommendations</span>
+                  <span className={styles.aiSuggTitle}>Your VYAS profile is building</span>
                   <span className={styles.aiSuggDesc}>
-                    Submit 3+ mock tests to activate your VYAS proficiency profile and get adapted content.
+                    Your proficiency profile processes in the background after each submission.
+                    Submit 3+ mock tests to unlock fully personalised recommendations and your VYAS rank.
                   </span>
                 </div>
               </div>

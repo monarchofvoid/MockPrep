@@ -16,11 +16,14 @@ Public API:
     Maps a numeric score to Beginner/Intermediate/Advanced/Expert.
 """
 
+import logging
 import traceback
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 import models
+
+logger = logging.getLogger(__name__)
 
 # ── ELO configuration ─────────────────────────────────────────────────────────
 
@@ -178,22 +181,20 @@ def _upsert_proficiency(
 def update_user_proficiency(user_id: int, attempt_id: int) -> None:
     """
     FastAPI BackgroundTask entry point.
-
-    Fired by submit-attempt after the response has been sent to the client.
-    Creates its own DB session — the route handler's session is already
-    closed by the time this runs.
-
-    Any exception is caught, logged, and swallowed so a proficiency update
-    failure never surfaces as an error to the user.
+    Creates its own DB session — the route handler's session is already closed.
+    Exceptions are caught, logged, and swallowed so failures never surface to users.
     """
-    from database import SessionLocal  # local import to avoid circular dependency
+    from database import SessionLocal  # local import avoids circular dependency
 
     db = SessionLocal()
     try:
         _run_update(db, user_id, attempt_id)
+        logger.info("Proficiency updated: user=%s attempt=%s", user_id, attempt_id)
     except Exception:
         db.rollback()
-        traceback.print_exc()  # visible in server logs; never crashes the task
+        logger.exception(
+            "Proficiency update FAILED for user=%s attempt=%s", user_id, attempt_id
+        )
     finally:
         db.close()
 

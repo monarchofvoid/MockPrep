@@ -337,6 +337,7 @@ class RecommendedMock(BaseModel):
     duration_minutes: int
     total_marks:      float
     question_count:   int
+    is_ai_generated:  bool = False
     reason:           str
 
 class AIMockSuggestion(BaseModel):
@@ -346,10 +347,20 @@ class AIMockSuggestion(BaseModel):
     difficulty: str
     reason:     str
 
+class OnboardingCard(BaseModel):
+    title:   str
+    message: str
+    cta:     str
+    cta_url: str
+
 class RecommendationResponse(BaseModel):
     overall_level:        str
     overall_score:        float
     has_proficiency_data: bool
+    # Total number of questions processed into proficiency (the real "signal" count)
+    total_signals:        int
     weak_topics:          List[WeakTopic]
     recommended_mocks:    List[RecommendedMock]
     ai_mock_suggestion:   Optional[AIMockSuggestion]
+    # Cold-start / onboarding card shown when exam has no papers yet
+    onboarding_card:      Optional[OnboardingCard] = None
