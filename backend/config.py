@@ -140,11 +140,21 @@ class _AppConfig:
 
     @property
     def AI_MAX_TOKENS_MOCK(self) -> int:
-        return int(_optional("AI_MAX_TOKENS_MOCK", "8192"))
+        # Raised to 16384 (v0.9): a batch of 10 JEE Math questions with full
+        # explanations needs ~6000-8000 tokens. 16384 gives safe headroom.
+        return int(_optional("AI_MAX_TOKENS_MOCK", "16384"))
 
     @property
     def AI_MAX_TOKENS_TUTOR(self) -> int:
         return int(_optional("AI_MAX_TOKENS_TUTOR", "2048"))
+
+    @property
+    def AI_MOCK_BATCH_SIZE(self) -> int:
+        # Max questions per single API call (v0.9 batching fix).
+        # Requests larger than this are split into sequential batches and merged.
+        # Default 10 keeps each call comfortably under the token limit even for
+        # token-heavy subjects like JEE Mathematics / Physics.
+        return int(_optional("AI_MOCK_BATCH_SIZE", "10"))
 
     # ── Gemini / AI (kept for backward compatibility — not used in v0.8) ──────
     @property

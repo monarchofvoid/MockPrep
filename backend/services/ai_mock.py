@@ -1,35 +1,38 @@
 """
-VYAS v0.8 — AI Mock Generator Service
+VYAS v0.9 — AI Mock Generator Service
 ======================================
-v0.8 changes:
-  PROVIDER MIGRATION: Replaced Gemini API with Groq (OpenAI-compatible).
-  Root cause: Gemini API blocks Render server IPs with FAILED_PRECONDITION
-  "User location is not supported". Groq uses OpenAI chat/completions format
-  and does not geo-restrict cloud hosting providers.
+v0.9 changes (truncation fix):
+  ROOT CAUSE: Generating 20 JEE Math/Physics questions in one API call produces
+  ~12,000-16,000 output tokens. With AI_MAX_TOKENS_MOCK previously set to 8192,
+  the model hit finish_reason=length and raised GeminiTruncationError → HTTP 422.
 
-  Preserved from v0.7:
+  FIX 1 — Request batching (primary fix):
+    generate_questions() now splits any request larger than AI_MOCK_BATCH_SIZE
+    (default: 10) into sequential batches. Each batch calls the Groq API
+    independently then results are merged and re-indexed. This guarantees no
+    single call ever exceeds the safe token budget regardless of subject.
+
+  FIX 2 — Higher token ceiling (defence-in-depth):
+    AI_MAX_TOKENS_MOCK default raised from 8192 → 16384 so even a slightly
+    over-sized single batch never truncates on edge-case subjects.
+
+  FIX 3 — Difficulty distribution preserved across batches:
+    counts_from_distribution() is sliced fairly across batches so the
+    overall easy/medium/hard ratio matches the proficiency-based target.
+
+  Preserved from v0.8:
     - All prompts (system_prompt + user_message structure unchanged)
     - Question validation logic (validate_ai_question)
-    - Difficulty distribution logic
-    - Retry behaviour (2 attempts, exponential backoff)
-    - Async/await architecture
-    - Error handling pattern (ValueError, HTTPStatusError, TimeoutException)
-    - Logging format (same log messages, same log levels)
-    - Response schema (same validated question dict structure)
-
-  Changed:
-    - HTTP endpoint: Gemini generateContent → Groq /chat/completions
-    - Auth: query-param key → Authorization: Bearer header
-    - Payload: Gemini system_instruction/contents → OpenAI messages array
-    - Response extraction: Gemini candidates[0] → Groq choices[0].message.content
-    - Config source: os.getenv direct → AppConfig properties
-    - Model env var: GEMINI_MODEL_MOCK → GROQ_MODEL
-    - API key env var: GEMINI_API_KEY_MOCK → GROQ_API_KEY
+    - Difficulty distribution logic (get_difficulty_distribution)
+    - Groq API call mechanics (call_groq_generate unchanged)
+    - Retry behaviour, async architecture, error handling pattern
+    - Logging format
+    - Response schema
 """
 
 import asyncio
 import logging
-import os
+import math
 from typing import Optional
 
 import httpx
@@ -45,7 +48,6 @@ from services.gemini_utils import (
 
 logger = logging.getLogger(__name__)
 
-# ── Retry / timeout constants (read from AppConfig so they're env-overridable) ─
 _RETRY_DELAY = 2.0  # seconds between retry attempts
 
 
@@ -67,6 +69,28 @@ def counts_from_distribution(total: int, dist: dict) -> dict:
     hard   = round(total * dist["hard"])
     medium = total - easy - hard
     return {"easy": max(0, easy), "medium": max(0, medium), "hard": max(0, hard)}
+
+
+def _slice_counts(full_counts: dict, batch_size: int, batch_idx: int, n_batches: int) -> dict:
+    """
+    Distribute easy/medium/hard counts fairly across batches.
+
+    Each batch gets floor(count/n_batches). The last batch absorbs any remainder
+    so the total always sums to the original request count.
+
+    Example:
+        full_counts = {easy:4, medium:11, hard:5}, batch_size=10, n_batches=2
+        batch 0 → {easy:2, medium:5, hard:2}   (floor of half)
+        batch 1 → {easy:2, medium:6, hard:3}   (remainder goes to last batch)
+    """
+    result = {}
+    for diff, total in full_counts.items():
+        base = total // n_batches
+        remainder = total % n_batches
+        # Give one extra to the *last* batch so totals always add up
+        extra = remainder if batch_idx == n_batches - 1 else 0
+        result[diff] = base + extra
+    return result
 
 
 # ── Question validation ────────────────────────────────────────────────────────
@@ -103,12 +127,12 @@ def validate_ai_question(raw: dict, index: int) -> dict:
     raw.setdefault("passage_title",    None)
     raw.setdefault("subtopic",         None)
     raw.setdefault("estimated_time_sec", None)
-    raw["id"] = index + 1
+    raw["id"] = index + 1   # Always overwrite to ensure sequential IDs
 
     return raw
 
 
-# ── Prompt builder (unchanged from v0.7) ──────────────────────────────────────
+# ── Prompt builder (unchanged from v0.7/v0.8) ─────────────────────────────────
 
 def build_generation_prompt(
     exam: str, subject: str, difficulty: str, count: int,
@@ -166,17 +190,15 @@ OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
     return system_prompt, user_message
 
 
-# ── Groq API call ──────────────────────────────────────────────────────────────
+# ── Groq API call (single batch) ──────────────────────────────────────────────
 
 async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict]:
     """
-    Call Groq (OpenAI-compatible) to generate mock questions.
+    Call Groq (OpenAI-compatible) to generate a single batch of questions.
 
-    Uses:
-      - GROQ_API_KEY  — Bearer token auth
-      - GROQ_MODEL    — model identifier (default: openai/gpt-oss-120b)
-      - GROQ_BASE_URL — API base (default: https://api.groq.com/openai/v1)
-      - AI_TIMEOUT, AI_MAX_RETRIES, AI_TEMPERATURE_MOCK, AI_MAX_TOKENS_MOCK
+    This function handles one API call with retry logic. It is intentionally
+    kept as a pure single-call function — batching is handled by the caller
+    (generate_questions_batch / generate_questions).
 
     API key is NEVER included in raised exceptions or log messages.
     """
@@ -201,8 +223,8 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
     }
 
     payload = {
-        "model": model,
-        "messages": [
+        "model":       model,
+        "messages":    [
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_message},
         ],
@@ -221,7 +243,7 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
                 response.raise_for_status()
             last_exc  = None
             timed_out = False
-            break  # success — exit retry loop
+            break
         except httpx.HTTPStatusError as exc:
             last_exc = exc
             logger.error(
@@ -231,7 +253,6 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
                 exc.response.text[:2000],
                 model,
             )
-            # 400 (bad request) or 401 (auth) — retrying won't help
             if exc.response.status_code in (400, 401, 403):
                 raise httpx.HTTPStatusError(
                     f"Groq API returned HTTP {exc.response.status_code}",
@@ -249,7 +270,6 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
             if attempt < max_retries - 1:
                 await asyncio.sleep(_RETRY_DELAY)
     else:
-        # Exhausted all retries
         if timed_out:
             raise httpx.TimeoutException(
                 f"Groq mock timed out after {max_retries} attempts."
@@ -261,9 +281,7 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
                 response=last_exc.response,
             ) from last_exc
 
-    data = response.json()
-
-    # Extract and parse response content
+    data     = response.json()
     check_finish_reason_groq(data)
     raw_text = extract_raw_text_groq(data)
     parsed   = _safe_json_extract(raw_text)
@@ -272,6 +290,32 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
         raise GeminiParseError(f"Expected a JSON array, got {type(parsed).__name__}")
 
     return parsed
+
+
+# ── Batched generation (v0.9 fix) ─────────────────────────────────────────────
+
+async def _generate_one_batch(
+    exam: str,
+    subject: str,
+    difficulty: str,
+    batch_count: int,
+    batch_dist: dict,
+    weak_topics: list[str],
+    batch_idx: int,
+    n_batches: int,
+) -> list[dict]:
+    """Generate a single batch of questions and return the raw (unindexed) list."""
+    system_prompt, user_message = build_generation_prompt(
+        exam=exam, subject=subject, difficulty=difficulty,
+        count=batch_count, dist=batch_dist, weak_topics=weak_topics,
+    )
+    logger.info(
+        "Groq mock batch %d/%d: exam=%s subject=%s difficulty=%s count=%d model=%s",
+        batch_idx + 1, n_batches,
+        exam, subject, difficulty, batch_count,
+        AppConfig.GROQ_MODEL,
+    )
+    return await call_groq_generate(system_prompt, user_message)
 
 
 # ── Main generation entry point ────────────────────────────────────────────────
@@ -284,26 +328,56 @@ async def generate_questions(
     proficiency_score: float = 400.0,
     weak_topics: Optional[list[str]] = None,
 ) -> list[dict]:
+    """
+    Generate AI mock questions, automatically batching large requests.
+
+    For count <= AI_MOCK_BATCH_SIZE (default: 10): one API call.
+    For count  > AI_MOCK_BATCH_SIZE: sequential batches, merged and re-indexed.
+
+    The outer log line preserves the existing format used by the router/log parser:
+      "Generating AI mock: exam=... subject=... difficulty=... count=... model=..."
+    """
     count       = min(count, 20)
     weak_topics = weak_topics or []
+    batch_size  = AppConfig.AI_MOCK_BATCH_SIZE
 
-    dist   = get_difficulty_distribution(proficiency_score)
-    counts = counts_from_distribution(count, dist)
+    dist         = get_difficulty_distribution(proficiency_score)
+    full_counts  = counts_from_distribution(count, dist)
+    n_batches    = math.ceil(count / batch_size)
 
-    system_prompt, user_message = build_generation_prompt(
-        exam=exam, subject=subject, difficulty=difficulty,
-        count=count, dist=counts, weak_topics=weak_topics,
-    )
-
+    # Preserve the top-level log line (log parsers / monitoring expects this format)
     logger.info(
-        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s",
+        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s%s",
         exam, subject, difficulty, count, AppConfig.GROQ_MODEL,
+        f" (batches={n_batches}×{batch_size})" if n_batches > 1 else "",
     )
-    raw_questions = await call_groq_generate(system_prompt, user_message)
 
-    validated = []
-    errors    = []
-    for i, raw in enumerate(raw_questions[:count]):
+    all_raw: list[dict] = []
+
+    for batch_idx in range(n_batches):
+        batch_start = batch_idx * batch_size
+        batch_end   = min(batch_start + batch_size, count)
+        batch_count = batch_end - batch_start
+
+        batch_dist = _slice_counts(full_counts, batch_size, batch_idx, n_batches)
+
+        batch_raw = await _generate_one_batch(
+            exam=exam, subject=subject, difficulty=difficulty,
+            batch_count=batch_count, batch_dist=batch_dist,
+            weak_topics=weak_topics,
+            batch_idx=batch_idx, n_batches=n_batches,
+        )
+        all_raw.extend(batch_raw[:batch_count])
+
+        # Small inter-batch delay to be a good API citizen (only when batching)
+        if batch_idx < n_batches - 1:
+            await asyncio.sleep(0.5)
+
+    # Validate and re-index all questions sequentially across the merged result
+    validated: list[dict] = []
+    errors:    list[str]  = []
+
+    for i, raw in enumerate(all_raw[:count]):
         try:
             validated.append(validate_ai_question(raw, i))
         except ValueError as exc:
@@ -312,7 +386,7 @@ async def generate_questions(
     if errors:
         logger.warning(
             "AI mock validation errors (%d/%d): %s",
-            len(errors), len(raw_questions),
+            len(errors), len(all_raw),
             "; ".join(errors[:5]),
         )
 
