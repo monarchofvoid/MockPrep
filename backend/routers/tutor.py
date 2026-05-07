@@ -1,7 +1,11 @@
 """
-VYAS v0.6 — Tutor Router
+VYAS v0.7 — Tutor Router
 =========================
-Fixes applied vs v0.5:
+Fixes applied vs v0.6:
+  CRITICAL BUG FIX: AI-generated mocks have json_file_path=None. The old
+    check `if not mock or not mock.json_file_path` always raised HTTP 500
+    for AI mocks — Vyas Explain was completely broken for AI-generated tests.
+    Now loads questions from the ai_mock_questions table for AI mocks.
   B1: Generic Exception in handler replaced with specific types
   B6: No bare `except Exception` — granular handling
 """
@@ -115,28 +119,55 @@ async def tutor_explain(
         )
 
     mock = attempt.mock_test
-    if not mock or not mock.json_file_path:
+    if not mock:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Mock test question bank file path not found.",
+            detail="Mock test not found for this attempt.",
         )
 
-    try:
-        mock_data = load_question_json(mock.json_file_path)
-    except HTTPException:
-        raise
+    # ── Load question data — handle both regular and AI-generated mocks ───────
+    question_data = None
 
-    question_data = next(
-        (q for q in mock_data.get("questions", []) if q.get("id") == body.question_id),
-        None,
-    )
-    if not question_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Question {body.question_id} not found in question bank.",
+    if mock.is_ai_generated:
+        # AI mocks store questions in the ai_mock_questions table, not a JSON file
+        ai_qs = (
+            db.query(models.AIMockQuestion)
+            .filter_by(mock_id=mock.id)
+            .all()
         )
+        for aq in ai_qs:
+            if aq.question_data and aq.question_data.get("id") == body.question_id:
+                question_data = dict(aq.question_data)
+                break
 
-    question_data = dict(question_data)
+        if question_data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Question {body.question_id} not found in AI mock question bank.",
+            )
+    else:
+        # Regular mocks load from JSON file
+        if not mock.json_file_path:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Mock test question bank file path not found.",
+            )
+
+        try:
+            mock_data = load_question_json(mock.json_file_path)
+        except HTTPException:
+            raise
+
+        question_data = next(
+            (q for q in mock_data.get("questions", []) if q.get("id") == body.question_id),
+            None,
+        )
+        if not question_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Question {body.question_id} not found in question bank.",
+            )
+        question_data = dict(question_data)
     question_data["_actual_time_seconds"] = response_row.time_spent_seconds or 0
     question_data["_subject"]             = mock.subject or ""
     question_data["_exam"]                = mock.exam or ""

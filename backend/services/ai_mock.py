@@ -1,14 +1,17 @@
 """
-VYAS v0.6 — AI Mock Generator Service
+VYAS v0.7 — AI Mock Generator Service
 ======================================
-Fixes applied vs v0.5:
-  B1: API key never exposed in exceptions
-  B3: json.loads replaced with _safe_json_extract
-  B5: finishReason checked (same pattern as tutor service)
-  B6: Granular exception handling
-  P3: print() replaced with logging
+Fixes applied vs v0.6:
+  ROOT CAUSE FIX: Removed `responseMimeType: "application/json"` from the
+    Gemini payload. In Gemini API 2025+, using JSON mode without a
+    `responseSchema` causes HTTP 400. _safe_json_extract() handles all
+    extraction patterns robustly, so JSON mode is not needed.
+  Model default updated to gemini-2.0-flash-001 (stable pinned version).
+  Added exponential-backoff retry (2 attempts) for transient 5xx/429 errors.
+  Enhanced error logging: full Gemini error body logged up to 2000 chars.
 """
 
+import asyncio
 import logging
 import os
 from typing import Optional
@@ -25,7 +28,9 @@ from services.gemini_utils import (
 
 logger = logging.getLogger(__name__)
 
-GEMINI_TIMEOUT = 40.0
+GEMINI_TIMEOUT = 50.0
+GEMINI_RETRY_ATTEMPTS = 2
+GEMINI_RETRY_DELAY = 2.0  # seconds
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
@@ -154,15 +159,20 @@ OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
 async def call_gemini_generate(system_prompt: str, user_message: str) -> list[dict]:
     """
     Call Gemini to generate questions.
+
+    ROOT CAUSE FIX (v0.7):
+      `responseMimeType: "application/json"` REMOVED from payload.
+      In Gemini API 2025+, JSON mode without `responseSchema` returns HTTP 400.
+      _safe_json_extract() handles all JSON patterns robustly — no JSON mode needed.
+
     API key URL is NEVER included in raised exceptions.
-    Raises ValueError, GeminiTruncationError, GeminiParseError,
-    httpx.HTTPStatusError, or httpx.TimeoutException.
     """
     api_key = os.getenv("GEMINI_API_KEY_MOCK", "").strip()
     if not api_key:
         raise ValueError("GEMINI_API_KEY_MOCK is not configured.")
 
-    gemini_model = os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash").strip()
+    # v0.7: default is stable pinned version, not floating alias
+    gemini_model = os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash-001").strip()
     if not gemini_model:
         raise ValueError("GEMINI_MODEL_MOCK is not configured.")
 
@@ -172,31 +182,63 @@ async def call_gemini_generate(system_prompt: str, user_message: str) -> list[di
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
-            "temperature":      0.5,
-            "maxOutputTokens":  8192,
-            "responseMimeType": "application/json",
+            "temperature":     0.5,
+            "maxOutputTokens": 8192,
+            # responseMimeType intentionally OMITTED — causes HTTP 400 in
+            # Gemini API 2025+ when used without responseSchema.
+            # _safe_json_extract() handles all extraction patterns.
         },
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        # B1: log full details server-side; raise sanitised version
-        logger.error(
-            "Gemini mock HTTP error: status=%s body=%r",
-            exc.response.status_code,
-            exc.response.text[:500],
-        )
-        raise httpx.HTTPStatusError(
-            f"Gemini API returned HTTP {exc.response.status_code}",
-            request=exc.request,
-            response=exc.response,
-        ) from exc
-    except httpx.TimeoutException:
-        logger.error("Gemini mock request timed out after %.1fs", GEMINI_TIMEOUT)
-        raise
+    last_exc: Optional[httpx.HTTPStatusError] = None
+    timed_out = False
+
+    for attempt in range(GEMINI_RETRY_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+            last_exc = None
+            timed_out = False
+            break  # success
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            logger.error(
+                "Gemini mock HTTP error (attempt %d/%d): status=%s body=%r model=%s",
+                attempt + 1, GEMINI_RETRY_ATTEMPTS,
+                exc.response.status_code,
+                exc.response.text[:2000],
+                gemini_model,
+            )
+            # 400 = bad request — no retry benefit; fail immediately
+            if exc.response.status_code == 400:
+                raise httpx.HTTPStatusError(
+                    f"Gemini API returned HTTP {exc.response.status_code}",
+                    request=exc.request,
+                    response=exc.response,
+                ) from exc
+            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(GEMINI_RETRY_DELAY * (attempt + 1))
+        except httpx.TimeoutException:
+            timed_out = True
+            logger.error(
+                "Gemini mock timeout (attempt %d/%d) after %.1fs",
+                attempt + 1, GEMINI_RETRY_ATTEMPTS, GEMINI_TIMEOUT,
+            )
+            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(GEMINI_RETRY_DELAY)
+    else:
+        # Exhausted all retries
+        if timed_out:
+            raise httpx.TimeoutException(
+                f"Gemini mock timed out after {GEMINI_RETRY_ATTEMPTS} attempts."
+            )
+        if last_exc is not None:
+            raise httpx.HTTPStatusError(
+                f"Gemini API returned HTTP {last_exc.response.status_code}",
+                request=last_exc.request,
+                response=last_exc.response,
+            ) from last_exc
 
     data = response.json()
 
@@ -235,8 +277,9 @@ async def generate_questions(
     )
 
     logger.info(
-        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d",
+        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s",
         exam, subject, difficulty, count,
+        os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash-001"),
     )
     raw_questions = await call_gemini_generate(system_prompt, user_message)
 

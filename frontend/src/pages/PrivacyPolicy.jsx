@@ -133,7 +133,7 @@ export default function PrivacyPolicy() {
         </ul>
         <p>
           To exercise any of these rights, contact us at{" "}
-          <a href="mailto:vyas.suppot@gmail.com">vyas.suppot@gmail.com</a>
+          <a href="mailto:support@vyasmock.online">support@vyasmock.online</a>
           {" "}with the subject line "Data Request". We will respond within 7 days.
         </p>
       </div>
@@ -153,7 +153,7 @@ export default function PrivacyPolicy() {
         <p>
           Privacy concerns?{" "}
           <Link to="/contact">Contact us</Link> or email{" "}
-          <a href="mailto:vyas.suppot@gmail.com">vyas.suppot@gmail.com</a>.
+          <a href="mailto:support@vyasmock.online">support@vyasmock.online</a>.
           We take data protection seriously and respond within 48 hours.
         </p>
       </div>

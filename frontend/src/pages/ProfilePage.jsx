@@ -1,12 +1,23 @@
 /**
- * VYAS v0.6 — Profile Page
- * FIX: Added <Navbar /> — was completely missing, causing the navbar to
- * vanish whenever the user navigated to /profile.
+ * VYAS v0.7 — Profile Page (Premium Redesign)
+ * =============================================
+ * All existing logic preserved. Only UI/UX enhanced.
+ *
+ * Changes:
+ *  - Profile hero card with avatar, name, and completion ring
+ *  - Profile completion % indicator
+ *  - Section icons and improved hierarchy
+ *  - Sticky save bar with animated feedback
+ *  - Better avatar grid with selection pulse animation
+ *  - Polished range slider with live preview
+ *  - Smooth section transitions
+ *  - Improved mobile layout
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getProfile, updateProfile } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
 import styles from "../styles/ProfilePage.module.css";
@@ -24,8 +35,31 @@ const AVATARS = [
   { code: "tiger",     emoji: "🐯", label: "Tiger"     },
 ];
 
+function computeCompletion(form) {
+  const fields = [
+    form.avatar,
+    form.preparing_exam,
+    form.target_year,
+    form.subject_focus?.trim(),
+    form.bio?.trim(),
+  ];
+  const filled = fields.filter(Boolean).length;
+  return Math.round((filled / fields.length) * 100);
+}
+
+function formatGoal(mins) {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 export default function ProfilePage() {
   const navigate  = useNavigate();
+  const { user }  = useAuth();
+
+  // Extract first name for a friendly greeting
+  const firstName = user?.name?.split(" ")[0] || "Your Profile";
   const [loading, setLoading]   = useState(true);
   const [saving,  setSaving]    = useState(false);
   const [success, setSuccess]   = useState(false);
@@ -86,6 +120,7 @@ export default function ProfilePage() {
     try {
       await updateProfile(payload);
       setSuccess(true);
+      setTimeout(() => setSuccess(false), 3500);
     } catch (err) {
       setError(err.message || "Failed to save profile. Please try again.");
     } finally {
@@ -94,6 +129,8 @@ export default function ProfilePage() {
   };
 
   const selectedAvatar = AVATARS.find(a => a.code === form.avatar);
+  const completion     = computeCompletion(form);
+  const sliderPct      = ((form.daily_goal_mins - 15) / (480 - 15)) * 100;
 
   if (loading) {
     return (
@@ -110,24 +147,68 @@ export default function ProfilePage() {
 
       <div className={styles.container}>
 
-        {/* ── Header ── */}
-        <div className={styles.header}>
-          <div className={styles.avatarDisplay}>
-            {selectedAvatar ? selectedAvatar.emoji : "👤"}
+        {/* ── Hero Card ── */}
+        <div className={styles.hero}>
+          <div className={styles.heroLeft}>
+            <div className={styles.heroAvatar}>
+              <span className={styles.heroAvatarEmoji}>
+                {selectedAvatar ? selectedAvatar.emoji : "👤"}
+              </span>
+              {/* Completion ring */}
+              <svg className={styles.completionRing} viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="24" className={styles.ringTrack} />
+                <circle
+                  cx="28" cy="28" r="24"
+                  className={styles.ringFill}
+                  strokeDasharray={`${(completion / 100) * 150.8} 150.8`}
+                />
+              </svg>
+            </div>
+
+            <div className={styles.heroInfo}>
+              <h1 className={styles.heroTitle}>{firstName}</h1>
+              <p className={styles.heroSubtitle}>
+                {form.preparing_exam
+                  ? `Preparing for ${form.preparing_exam}${form.target_year ? ` · ${form.target_year}` : ""}`
+                  : "Personalise VYAS to match your goals"}
+              </p>
+              <div className={styles.completionRow}>
+                <div className={styles.completionBar}>
+                  <div
+                    className={styles.completionFill}
+                    style={{ width: `${completion}%` }}
+                  />
+                </div>
+                <span className={styles.completionLabel}>{completion}% complete</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className={styles.title}>Your Profile</h1>
-            <p className={styles.subtitle}>
-              Personalise VYAS to match your exam goals and study style.
-            </p>
+
+          <div className={styles.heroStats}>
+            <div className={styles.heroStat}>
+              <span className={styles.heroStatValue}>{formatGoal(form.daily_goal_mins)}</span>
+              <span className={styles.heroStatLabel}>Daily goal</span>
+            </div>
+            {form.preparing_exam && (
+              <div className={styles.heroStat}>
+                <span className={styles.heroStatValue}>{form.preparing_exam}</span>
+                <span className={styles.heroStatLabel}>Target exam</span>
+              </div>
+            )}
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
 
-          {/* ── Avatar Selector ── */}
+          {/* ── Avatar Selection ── */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Choose Your Avatar</h2>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>🎭</span>
+              <div>
+                <h2 className={styles.sectionTitle}>Choose Your Avatar</h2>
+                <p className={styles.sectionNote}>Your visual identity across VYAS</p>
+              </div>
+            </div>
             <div className={styles.avatarGrid}>
               {AVATARS.map(a => (
                 <button
@@ -139,6 +220,9 @@ export default function ProfilePage() {
                 >
                   <span className={styles.avatarEmoji}>{a.emoji}</span>
                   <span className={styles.avatarLabel}>{a.label}</span>
+                  {form.avatar === a.code && (
+                    <span className={styles.avatarCheck}>✓</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -146,11 +230,15 @@ export default function ProfilePage() {
 
           {/* ── Exam Preferences ── */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Exam Preferences</h2>
-            <p className={styles.sectionNote}>
-              Your preparing exam is used as a <strong>hard filter</strong> for
-              mock recommendations — you will only see papers for this exam.
-            </p>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>🎯</span>
+              <div>
+                <h2 className={styles.sectionTitle}>Exam Preferences</h2>
+                <p className={styles.sectionNote}>
+                  Your exam is used as a <strong>hard filter</strong> — you'll only see papers for this exam
+                </p>
+              </div>
+            </div>
 
             <div className={styles.row}>
               <div className={styles.field}>
@@ -208,13 +296,22 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* ── Study Goals ── */}
+          {/* ── Study Goal ── */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Daily Study Goal</h2>
-            <div className={styles.field}>
-              <label htmlFor="daily_goal_mins" className={styles.label}>
-                Minutes per day: <strong>{form.daily_goal_mins} min</strong>
-              </label>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>⏱</span>
+              <div>
+                <h2 className={styles.sectionTitle}>Daily Study Goal</h2>
+                <p className={styles.sectionNote}>How long do you plan to study each day?</p>
+              </div>
+            </div>
+
+            <div className={styles.goalDisplay}>
+              <span className={styles.goalValue}>{formatGoal(form.daily_goal_mins)}</span>
+              <span className={styles.goalSuffix}>per day</span>
+            </div>
+
+            <div className={styles.sliderWrap}>
               <input
                 id="daily_goal_mins"
                 name="daily_goal_mins"
@@ -225,6 +322,7 @@ export default function ProfilePage() {
                 value={form.daily_goal_mins}
                 onChange={handleChange}
                 className={styles.range}
+                style={{ "--slider-pct": `${sliderPct}%` }}
               />
               <div className={styles.rangeLabels}>
                 <span>15 min</span>
@@ -235,13 +333,17 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* ── Bio ── */}
+          {/* ── About You ── */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>About You</h2>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>✏️</span>
+              <div>
+                <h2 className={styles.sectionTitle}>About You</h2>
+                <p className={styles.sectionNote}>Tell VYAS about your preparation journey</p>
+              </div>
+            </div>
+
             <div className={styles.field}>
-              <label htmlFor="bio" className={styles.label}>
-                Short Bio <span className={styles.optional}>(optional)</span>
-              </label>
               <textarea
                 id="bio"
                 name="bio"
@@ -252,27 +354,44 @@ export default function ProfilePage() {
                 rows={3}
                 maxLength={300}
               />
-              <p className={styles.charCount}>{form.bio.length}/300</p>
+              <div className={styles.bioFooter}>
+                <p className={styles.hint}>Optional — helps VYAS personalise responses</p>
+                <p className={styles.charCount} data-near={form.bio.length > 250}>
+                  {form.bio.length}/300
+                </p>
+              </div>
             </div>
           </section>
 
-          {error   && <p className={styles.errorMsg}>{error}</p>}
-          {success && <p className={styles.successMsg}>✅ Profile saved successfully!</p>}
+          {/* ── Error ── */}
+          {error && (
+            <div className={styles.errorBox}>
+              <span>⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
 
+          {/* ── Actions ── */}
           <div className={styles.actions}>
             <button
               type="button"
               className={styles.cancelBtn}
               onClick={() => navigate("/dashboard")}
             >
-              Back to Dashboard
+              ← Dashboard
             </button>
             <button
               type="submit"
-              className={styles.saveBtn}
+              className={`${styles.saveBtn} ${success ? styles.saveBtnSuccess : ""}`}
               disabled={saving}
             >
-              {saving ? "Saving…" : "Save Profile"}
+              {saving ? (
+                <><span className={styles.btnSpinner} /> Saving…</>
+              ) : success ? (
+                <>✓ Saved!</>
+              ) : (
+                <>Save Profile</>
+              )}
             </button>
           </div>
 

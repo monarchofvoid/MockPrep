@@ -158,7 +158,7 @@ export default function Contact() {
       <div className={styles.infoCard}>
         <p>
           Prefer email directly?{" "}
-          <a href="vyas.suppot@gmail.com">vyas.suppot@gmail.com</a>
+          <a href="support@vyasmock.online">support@vyasmock.online</a>
         </p>
         <p style={{ marginTop: 8 }}>
           <strong>Response time:</strong> within 48 hours on working days.

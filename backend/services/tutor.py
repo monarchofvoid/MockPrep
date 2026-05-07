@@ -1,14 +1,17 @@
 """
-VYAS v0.6 — Tutor Service
+VYAS v0.7 — Tutor Service
 ==========================
-Fixes applied vs v0.5:
-  B1: API key never exposed in exceptions (URLs logged server-side only)
-  B2: maxOutputTokens raised to 2048; finishReason validated before JSON parse
-  B3: json.loads replaced with _safe_json_extract from gemini_utils
-  B6: Granular exception types replace bare `except Exception`
-  P3: print() replaced with logging
+Fixes applied vs v0.6:
+  ROOT CAUSE FIX: Removed `responseMimeType: "application/json"` from the
+    Gemini payload. In Gemini API 2025+, using JSON mode without a
+    `responseSchema` causes HTTP 400. _safe_json_extract() handles all
+    extraction patterns, so JSON mode is not required.
+  Model default updated to gemini-2.0-flash-001 (stable pinned version).
+  Added exponential-backoff retry for transient 5xx/429 errors.
+  Enhanced error logging: full Gemini error body logged up to 2000 chars.
 """
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -30,7 +33,9 @@ from services.gemini_utils import (
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_DAYS = 7
-GEMINI_TIMEOUT = 20.0
+GEMINI_TIMEOUT = 30.0
+GEMINI_RETRY_ATTEMPTS = 2
+GEMINI_RETRY_DELAY = 2.0
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
@@ -104,15 +109,21 @@ Generate the explanation now."""
 
 async def call_gemini(system_prompt: str, user_message: str) -> dict:
     """
-    Call Gemini API. API key URL is NEVER included in raised exceptions.
-    Raises ValueError, GeminiTruncationError, GeminiParseError,
-    httpx.HTTPStatusError, or httpx.TimeoutException.
+    Call Gemini API for tutor explanations.
+
+    ROOT CAUSE FIX (v0.7):
+      `responseMimeType: "application/json"` REMOVED from payload.
+      In Gemini API 2025+, JSON mode without `responseSchema` returns HTTP 400.
+      _safe_json_extract() handles all JSON patterns — no JSON mode needed.
+
+    API key URL is NEVER included in raised exceptions.
     """
     api_key = os.getenv("GEMINI_API_KEY_TUTOR", "").strip()
     if not api_key:
         raise ValueError("GEMINI_API_KEY_TUTOR is not configured.")
 
-    gemini_model = os.getenv("GEMINI_MODEL_TUTOR", "gemini-2.0-flash").strip()
+    # v0.7: default is stable pinned version, not floating alias
+    gemini_model = os.getenv("GEMINI_MODEL_TUTOR", "gemini-2.0-flash-001").strip()
     if not gemini_model:
         raise ValueError("GEMINI_MODEL_TUTOR is not configured.")
 
@@ -122,31 +133,62 @@ async def call_gemini(system_prompt: str, user_message: str) -> dict:
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
         "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 8048,   # B2: raised from 1024
-            "responseMimeType": "application/json",
+            "temperature":     0.3,
+            "maxOutputTokens": 2048,
+            # responseMimeType intentionally OMITTED — causes HTTP 400 in
+            # Gemini API 2025+ when used without responseSchema.
+            # _safe_json_extract() handles all extraction patterns.
         },
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        # B1: log full details server-side; raise sanitised version to caller
-        logger.error(
-            "Gemini tutor HTTP error: status=%s body=%r",
-            exc.response.status_code,
-            exc.response.text[:500],
-        )
-        raise httpx.HTTPStatusError(
-            f"Gemini API returned HTTP {exc.response.status_code}",
-            request=exc.request,
-            response=exc.response,
-        ) from exc
-    except httpx.TimeoutException:
-        logger.error("Gemini tutor request timed out after %.1fs", GEMINI_TIMEOUT)
-        raise
+    last_exc: Optional[httpx.HTTPStatusError] = None
+    timed_out = False
+
+    for attempt in range(GEMINI_RETRY_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+            last_exc = None
+            timed_out = False
+            break  # success
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            logger.error(
+                "Gemini tutor HTTP error (attempt %d/%d): status=%s body=%r model=%s",
+                attempt + 1, GEMINI_RETRY_ATTEMPTS,
+                exc.response.status_code,
+                exc.response.text[:2000],
+                gemini_model,
+            )
+            # 400 = bad request format — retrying won't help
+            if exc.response.status_code == 400:
+                raise httpx.HTTPStatusError(
+                    f"Gemini API returned HTTP {exc.response.status_code}",
+                    request=exc.request,
+                    response=exc.response,
+                ) from exc
+            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(GEMINI_RETRY_DELAY * (attempt + 1))
+        except httpx.TimeoutException:
+            timed_out = True
+            logger.error(
+                "Gemini tutor timeout (attempt %d/%d) after %.1fs",
+                attempt + 1, GEMINI_RETRY_ATTEMPTS, GEMINI_TIMEOUT,
+            )
+            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(GEMINI_RETRY_DELAY)
+    else:
+        if timed_out:
+            raise httpx.TimeoutException(
+                f"Gemini tutor timed out after {GEMINI_RETRY_ATTEMPTS} attempts."
+            )
+        if last_exc is not None:
+            raise httpx.HTTPStatusError(
+                f"Gemini API returned HTTP {last_exc.response.status_code}",
+                request=last_exc.request,
+                response=last_exc.response,
+            ) from last_exc
 
     data = response.json()
     # B2: check finishReason BEFORE touching content
