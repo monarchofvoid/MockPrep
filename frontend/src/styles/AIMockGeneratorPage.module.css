@@ -327,3 +327,15 @@
 }
 .suggIcon { font-size: 14px; flex-shrink: 0; }
 .suggText { font-size: 12px; color: #93c5fd; line-height: 1.5; }
+/* ── v0.10: Generation progress bar ─────────────────────────────────────────── */
+.progressWrap {
+  margin-top: 12px;
+  width: 100%;
+}
+.progressBar {
+  height: 4px;
+  background: var(--vyas-gold, #d4a843);
+  border-radius: 2px;
+  transition: width 0.7s ease;
+  max-width: 100%;
+}

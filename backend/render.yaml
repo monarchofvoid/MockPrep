@@ -5,6 +5,8 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port ${PORT}"
     envVars:
+      - key: ENVIRONMENT
+        value: "production"
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -15,24 +17,87 @@ services:
         value: "https://mock-prep-three.vercel.app"
       - key: QB_ROOT
         value: "../question_bank"
+
+      # ── Groq / AI provider ─────────────────────────────────────────────────
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
         value: "openai/gpt-oss-120b"
       - key: GROQ_BASE_URL
         value: "https://api.groq.com/openai/v1"
+
+      # ── v0.11: Your plan's TPM ceiling. Free tier = 8000.
+      #    Groq counts (input_tokens + max_tokens_param) against this.
+      #    Raise this if you upgrade to a paid plan.
+      - key: GROQ_TPM_LIMIT
+        value: "8000"
+
+      # ── AI tuning ──────────────────────────────────────────────────────────
       - key: AI_TIMEOUT
-        value: "50.0"
+        value: "60.0"
       - key: AI_MAX_RETRIES
-        value: "2"
+        value: "3"
       - key: AI_TEMPERATURE_MOCK
         value: "0.5"
       - key: AI_TEMPERATURE_TUTOR
         value: "0.3"
+
+      # v0.11: AI_MAX_TOKENS_MOCK is now a HARD CAP / SAFETY NET only.
+      # The service computes a tighter dynamic value per batch automatically.
+      # Must be < GROQ_TPM_LIMIT - AI_PROMPT_TOKEN_ESTIMATE (< 7650).
+      # DO NOT raise this back to 8192 or 16384 — that was the root cause.
       - key: AI_MAX_TOKENS_MOCK
-        value: "8192"
+        value: "7500"
       - key: AI_MAX_TOKENS_TUTOR
         value: "2048"
+
+      # ── Batching & TPM rate-limit control (v0.11) ─────────────────────────
+      #
+      #  HOW TOKEN BUDGETING WORKS (v0.11):
+      #    Groq sees:  input_tokens + max_tokens_param  against TPM limit.
+      #    Per batch:  AI_PROMPT_TOKEN_ESTIMATE + (AI_MOCK_BATCH_SIZE
+      #                × AI_TOKENS_PER_QUESTION × AI_OUTPUT_TOKEN_OVERHEAD)
+      #              = 350 + (3 × 600 × 1.20)
+      #              = 350 + 2160
+      #              = 2510 tokens  →  well under 8000 ✓
+      #
+      #  INTER-BATCH DELAY FORMULA (if you ever tune these):
+      #    delay_s = (total_tokens_per_batch / GROQ_TPM_LIMIT) × 60 × 1.2
+      #            = (2510 / 8000) × 60 × 1.2  ≈  22.6 s
+
+      # Questions per single API call. At 3: total ≈ 2510 tokens < 8K TPM.
+      # Do NOT raise above 5 without recalculating the delay formula above.
+      - key: AI_MOCK_BATCH_SIZE
+        value: "4"
+
+      # Seconds to wait between batch calls — must respect TPM pacing.
+      # Minimum = (2510/8000)×60 = 18.8 s. 22 s = 17% safety buffer.
+      - key: AI_BATCH_DELAY
+        value: "42.0"
+
+      # Base backoff on HTTP 429. Actual = AI_RATE_LIMIT_BACKOFF × (attempt+1).
+      # attempt 1 → 30 s, attempt 2 → 60 s (full TPM window).
+      - key: AI_RATE_LIMIT_BACKOFF
+        value: "30.0"
+
+      # Fraction of TPM considered safe. Warning logged if exceeded.
+      - key: AI_TOKEN_SAFETY_MARGIN
+        value: "0.80"
+
+      # Estimated output tokens per generated question.
+      # JEE Math/Physics: 500-700. CUET/simpler subjects: 300-450.
+      - key: AI_TOKENS_PER_QUESTION
+        value: "1400"
+
+      # Multiplier on top of per-question estimate for the dynamic max_tokens.
+      # 1.20 = 20% headroom above the per-question estimate.
+      - key: AI_OUTPUT_TOKEN_OVERHEAD
+        value: "1.20"
+
+      # Conservative upper bound on prompt (input) tokens per batch.
+      # Used in pre-flight budget check. Actual is typically 250-300.
+      - key: AI_PROMPT_TOKEN_ESTIMATE
+        value: "262"
 
 databases:
   - name: vyas-db

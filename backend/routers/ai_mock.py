@@ -1,10 +1,14 @@
 """
-VYAS v0.6 — AI Mock Router
-============================
-Fixes applied vs v0.5:
-  B1: Granular exception handling — API key/URL never in responses
-  B5: finishReason check delegated to service layer (gemini_utils)
-  B6: No bare `except Exception`
+VYAS v0.10 — AI Mock Router
+=============================
+v0.10 fixes vs v0.6:
+  CRITICAL BUG FIX: GeminiTruncationError extends ValueError. The old
+    exception handler order (ValueError first) meant GeminiTruncationError
+    was silently caught as ValueError, returning HTTP 422 instead of 503.
+    Fixed by moving GeminiTruncationError handler BEFORE ValueError handler.
+  Preserved from v0.6:
+    B1: Granular exception handling — API key/URL never in responses
+    B5: finishReason check delegated to service layer (gemini_utils)
 """
 
 import logging
@@ -66,7 +70,10 @@ async def generate_ai_mock(
                 if r.accuracy_rate < 0.50 and r.total_count >= 3
             ]
 
-    # B1 + B6 Fix: Specific exception types, no URL/key in messages
+    # ── IMPORTANT: GeminiTruncationError extends ValueError.
+    # It MUST be caught before ValueError, otherwise Python's first-match
+    # rule silently routes it to the ValueError handler (HTTP 422) instead
+    # of the correct HTTP 503 — the bug present in v0.6.
     try:
         questions = await generate_questions(
             exam=body.exam,
@@ -76,12 +83,9 @@ async def generate_ai_mock(
             proficiency_score=proficiency_score,
             weak_topics=weak_topics,
         )
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        )
     except GeminiTruncationError as exc:
+        # Truncation = Groq hit max_tokens. Return 503 (transient, retriable).
+        logger.warning("AI mock truncated for user=%s: %s", current_user.id, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
@@ -91,6 +95,11 @@ async def generate_ai_mock(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service returned an invalid response. Please retry.",
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
         )
     except httpx.HTTPStatusError as exc:
         logger.error("AI mock HTTP error: status=%s user=%s",

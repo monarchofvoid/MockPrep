@@ -94,6 +94,11 @@ export default function AIMockGeneratorPage() {
   const [generating, setGenerating] = useState(false);
   const [genError,   setGenError]   = useState("");
 
+  // Progress UX: time-based estimation (no websocket needed)
+  // Estimate: ~12s per batch, batch size = 5, so 20q = 4 batches ≈ 50s total
+  const [genProgress,   setGenProgress]   = useState(0);
+  const [genStatusMsg,  setGenStatusMsg]  = useState("");
+
   // ── History state ────────────────────────────────────────────────────────────
   const [history,        setHistory]        = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -142,9 +147,47 @@ export default function AIMockGeneratorPage() {
     if (generating) return;
     setGenerating(true);
     setGenError("");
+    setGenProgress(0);
+    setGenStatusMsg("Connecting to AI…");
+
+    // Time-based progress: estimate total time from question count.
+    // Each batch of 5 takes ~12s on Groq free tier (conservative).
+    const BATCH_SIZE    = 5;
+    const SECS_PER_BATCH = 13;
+    const n_batches      = Math.ceil(count / BATCH_SIZE);
+    const estimatedSecs  = n_batches * SECS_PER_BATCH + 3; // +3 for overhead
+
+    const BATCH_MESSAGES = [
+      "Crafting your questions…",
+      "Generating more questions…",
+      "Building your mock test…",
+      "Almost there…",
+    ];
+
+    let elapsed = 0;
+    const intervalMs = 800;
+    const progressInterval = setInterval(() => {
+      elapsed += intervalMs / 1000;
+      const pct = Math.min(92, Math.round((elapsed / estimatedSecs) * 100));
+      setGenProgress(pct);
+
+      // Update status message at batch boundaries
+      const batchIdx = Math.min(
+        Math.floor(elapsed / SECS_PER_BATCH),
+        BATCH_MESSAGES.length - 1
+      );
+      setGenStatusMsg(
+        n_batches > 1
+          ? `${BATCH_MESSAGES[batchIdx]} (part ${batchIdx + 1} of ${n_batches})`
+          : BATCH_MESSAGES[0]
+      );
+    }, intervalMs);
+
     try {
       const result = await generateAIMock(exam, subject, difficulty, count, true);
-      // result = StartAttemptResponse — navigate directly to test
+      clearInterval(progressInterval);
+      setGenProgress(100);
+      setGenStatusMsg("Done! Loading your test…");
       navigate(`/test/${result.attempt_id}`, {
         state: {
           attemptData: {
@@ -156,7 +199,20 @@ export default function AIMockGeneratorPage() {
         },
       });
     } catch (e) {
-      setGenError(e.message || "Generation failed. Please try again.");
+      clearInterval(progressInterval);
+      setGenProgress(0);
+      setGenStatusMsg("");
+      // Provide friendlier messages for known server errors
+      const raw = e.message || "";
+      let friendlyMsg = raw;
+      if (raw.includes("timed out") || raw.includes("504")) {
+        friendlyMsg = "Generation timed out — the AI is busy. Please retry in a moment.";
+      } else if (raw.includes("rate limit") || raw.includes("503") || raw.includes("429")) {
+        friendlyMsg = "AI service is busy right now. Please wait 30 seconds and retry.";
+      } else if (raw.includes("invalid response") || raw.includes("502")) {
+        friendlyMsg = "AI returned an unexpected response. Please retry.";
+      }
+      setGenError(friendlyMsg || "Generation failed. Please try again.");
       setGenerating(false);
     }
   };
@@ -279,7 +335,7 @@ export default function AIMockGeneratorPage() {
               {generating ? (
                 <>
                   <span className={styles.btnSpinner} />
-                  <span>Generating {count} questions…</span>
+                  <span>{genStatusMsg || `Generating ${count} questions…`}</span>
                 </>
               ) : (
                 <>
@@ -289,10 +345,19 @@ export default function AIMockGeneratorPage() {
               )}
             </button>
 
+            {/* Progress bar */}
             {generating && (
-              <p className={styles.generatingNote}>
-                VYAS is crafting your personalised questions. This takes 10–20 seconds.
-              </p>
+              <div className={styles.progressWrap}>
+                <div
+                  className={styles.progressBar}
+                  style={{ width: `${genProgress}%` }}
+                />
+                <p className={styles.generatingNote}>
+                  {count > 5
+                    ? `Generating in ${Math.ceil(count / 5)} batches — this takes ${Math.ceil(count / 5) * 13}–${Math.ceil(count / 5) * 16} seconds.`
+                    : "This takes 10–15 seconds."}
+                </p>
+              </div>
             )}
           </div>
 

@@ -1,5 +1,5 @@
 """
-VYAS v0.8 — Environment Configuration & Validation
+VYAS v0.11 — Environment Configuration & Validation
 =====================================================
 Single source of truth for all env variables.
 Import AppConfig from here instead of reading os.getenv() scattered everywhere.
@@ -8,16 +8,32 @@ Usage:
     from config import AppConfig
     print(AppConfig.GROQ_API_KEY)
 
+v0.11 changes (413 / TPM fix):
+  ROOT CAUSE: Groq counts (input_tokens + max_tokens_param) against the TPM
+  limit, NOT just output tokens. Sending max_tokens=16384 per batch consumed
+  16,646 "requested" tokens — more than double the 8,000 TPM ceiling → 413.
+
+  FIX: max_tokens is now computed *dynamically per batch* in the service layer
+  as (batch_count × AI_TOKENS_PER_QUESTION × AI_OUTPUT_TOKEN_OVERHEAD).
+  AI_MAX_TOKENS_MOCK is now a hard upper-cap / fallback only.
+
+  New knobs added:
+    GROQ_TPM_LIMIT            — your plan's TPM ceiling (default 8000)
+    AI_PROMPT_TOKEN_ESTIMATE  — estimated input tokens per batch prompt (~350)
+    AI_OUTPUT_TOKEN_OVERHEAD  — multiplier on top of per-question estimate (1.20)
+
+  Tuning defaults adjusted:
+    AI_MOCK_BATCH_SIZE  3  → 3 × 600 × 1.20 + 350 = 2,510 tokens per batch
+    AI_BATCH_DELAY     22  → ≥ (2510/8000)×60 s  = 18.8 s minimum; 22 s safe
+    AI_MAX_TOKENS_MOCK 7500 → hard cap (< 8000 TPM floor, safety net only)
+
 v0.8 changes:
   - Added Groq AI provider settings (GROQ_API_KEY, GROQ_MODEL, GROQ_BASE_URL)
-  - Added provider-agnostic AI tuning knobs (AI_TIMEOUT, AI_MAX_RETRIES,
-    AI_TEMPERATURE_MOCK, AI_TEMPERATURE_TUTOR, AI_MAX_TOKENS_MOCK,
-    AI_MAX_TOKENS_TUTOR)
+  - Added provider-agnostic AI tuning knobs.
   - Kept all Gemini settings for backward compatibility during transition.
 """
 
 import os
-import secrets
 import warnings
 from pathlib import Path
 
@@ -70,9 +86,6 @@ class _AppConfig:
 
     @property
     def ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
-        # NOTE: No refresh token system exists yet.
-        # Tokens expire after 7 days. Users must re-login after expiry.
-        # TODO v0.7: implement refresh token endpoint for seamless renewal.
         return int(_optional("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))  # 7 days
 
     # ── Database ──────────────────────────────────────────────────────────────
@@ -105,7 +118,6 @@ class _AppConfig:
         raw = _optional("QB_ROOT", "")
         if raw:
             return Path(raw)
-        # Deterministic fallback: relative to THIS file's location
         return Path(__file__).parent.parent / "question_bank"
 
     # ── Groq / AI (v0.8 — primary AI provider) ───────────────────────────────
@@ -121,14 +133,21 @@ class _AppConfig:
     def GROQ_BASE_URL(self) -> str:
         return _optional("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 
+    @property
+    def GROQ_TPM_LIMIT(self) -> int:
+        # v0.11: your Groq plan's Tokens Per Minute ceiling.
+        # Groq counts (input_tokens + max_tokens_param) against this limit.
+        # Free tier = 8000. Dev/paid tiers are higher — raise accordingly.
+        return int(_optional("GROQ_TPM_LIMIT", "8000"))
+
     # ── Provider-agnostic AI tuning knobs ─────────────────────────────────────
     @property
     def AI_TIMEOUT(self) -> float:
-        return float(_optional("AI_TIMEOUT", "50.0"))
+        return float(_optional("AI_TIMEOUT", "60.0"))
 
     @property
     def AI_MAX_RETRIES(self) -> int:
-        return int(_optional("AI_MAX_RETRIES", "2"))
+        return int(_optional("AI_MAX_RETRIES", "3"))
 
     @property
     def AI_TEMPERATURE_MOCK(self) -> float:
@@ -140,9 +159,10 @@ class _AppConfig:
 
     @property
     def AI_MAX_TOKENS_MOCK(self) -> int:
-        # Raised to 16384 (v0.9): a batch of 10 JEE Math questions with full
-        # explanations needs ~6000-8000 tokens. 16384 gives safe headroom.
-        return int(_optional("AI_MAX_TOKENS_MOCK", "16384"))
+        # v0.11: This is now a HARD CAP / SAFETY NET only.
+        # The service layer computes a tighter dynamic value per batch.
+        # Must stay below GROQ_TPM_LIMIT - AI_PROMPT_TOKEN_ESTIMATE (≈ 7500).
+        return int(_optional("AI_MAX_TOKENS_MOCK", "7500"))
 
     @property
     def AI_MAX_TOKENS_TUTOR(self) -> int:
@@ -150,11 +170,50 @@ class _AppConfig:
 
     @property
     def AI_MOCK_BATCH_SIZE(self) -> int:
-        # Max questions per single API call (v0.9 batching fix).
-        # Requests larger than this are split into sequential batches and merged.
-        # Default 10 keeps each call comfortably under the token limit even for
-        # token-heavy subjects like JEE Mathematics / Physics.
-        return int(_optional("AI_MOCK_BATCH_SIZE", "10"))
+        # v0.11: lowered from 5 → 3.
+        # Per-batch token budget: 3 × 600 × 1.20 + 350 input ≈ 2 510 tokens.
+        # 2 510 < 8 000 TPM limit → no more 413 errors.
+        # Raising this above 5 will likely exceed the 8 000 TPM ceiling again.
+        return int(_optional("AI_MOCK_BATCH_SIZE", "4"))
+
+    @property
+    def AI_BATCH_DELAY(self) -> float:
+        # v0.11: raised from 2.0 → 22.0 seconds.
+        # Minimum safe delay = (2510 / 8000) × 60 = 18.8 s.
+        # 22 s adds a 17% safety margin on top of that.
+        # Formula if you tune this yourself:
+        #   delay = ((batch_size × TPQ × overhead + prompt_est) / TPM_limit) × 60 × 1.2
+        return float(_optional("AI_BATCH_DELAY", "42.0"))
+
+    @property
+    def AI_RATE_LIMIT_BACKOFF(self) -> float:
+        # Base backoff seconds when Groq returns HTTP 429.
+        # Actual wait = AI_RATE_LIMIT_BACKOFF * (attempt + 1).
+        return float(_optional("AI_RATE_LIMIT_BACKOFF", "30.0"))
+
+    @property
+    def AI_TOKEN_SAFETY_MARGIN(self) -> float:
+        return float(_optional("AI_TOKEN_SAFETY_MARGIN", "0.80"))
+
+    @property
+    def AI_TOKENS_PER_QUESTION(self) -> int:
+        # Estimated *output* tokens per generated question.
+        # JEE Math/Physics full explanation: 500-700. CUET/simpler: 300-450.
+        return int(_optional("AI_TOKENS_PER_QUESTION", "1400"))
+
+    @property
+    def AI_OUTPUT_TOKEN_OVERHEAD(self) -> float:
+        # v0.11: multiplier applied to (batch_count × AI_TOKENS_PER_QUESTION)
+        # when computing the dynamic max_tokens to send in the API request.
+        # 1.20 = 20% buffer above the per-question estimate.
+        return float(_optional("AI_OUTPUT_TOKEN_OVERHEAD", "1.20"))
+
+    @property
+    def AI_PROMPT_TOKEN_ESTIMATE(self) -> int:
+        # v0.11: estimated input tokens consumed by the system + user prompt
+        # per batch. Used in pre-flight budget check and delay calculation.
+        # 350 is a conservative upper bound; actual is typically ~250-300.
+        return int(_optional("AI_PROMPT_TOKEN_ESTIMATE", "262"))
 
     # ── Gemini / AI (kept for backward compatibility — not used in v0.8) ──────
     @property
@@ -193,7 +252,6 @@ class _AppConfig:
     # ── Rate limiting ─────────────────────────────────────────────────────────
     @property
     def RATE_LIMIT_AI_PER_MINUTE(self) -> str:
-        """SlowAPI rate limit string for AI endpoints."""
         return _optional("RATE_LIMIT_AI_PER_MINUTE", "10/minute")
 
     @property

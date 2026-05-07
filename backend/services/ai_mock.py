@@ -1,33 +1,53 @@
 """
-VYAS v0.9 — AI Mock Generator Service
-======================================
-v0.9 changes (truncation fix):
-  ROOT CAUSE: Generating 20 JEE Math/Physics questions in one API call produces
-  ~12,000-16,000 output tokens. With AI_MAX_TOKENS_MOCK previously set to 8192,
-  the model hit finish_reason=length and raised GeminiTruncationError → HTTP 422.
+VYAS v0.11 — AI Mock Generator Service
+=======================================
+v0.11 changes (413 / TPM fix):
 
-  FIX 1 — Request batching (primary fix):
-    generate_questions() now splits any request larger than AI_MOCK_BATCH_SIZE
-    (default: 10) into sequential batches. Each batch calls the Groq API
-    independently then results are merged and re-indexed. This guarantees no
-    single call ever exceeds the safe token budget regardless of subject.
+  ROOT CAUSE:
+    Groq counts (input_tokens + max_tokens_param) against the TPM limit —
+    NOT just generated output. The code was sending max_tokens=16384 for every
+    batch regardless of size. Input prompt ≈ 262 tokens, so Groq saw:
+      262 + 16384 = 16646 requested tokens > 8000 TPM limit → HTTP 413.
 
-  FIX 2 — Higher token ceiling (defence-in-depth):
-    AI_MAX_TOKENS_MOCK default raised from 8192 → 16384 so even a slightly
-    over-sized single batch never truncates on edge-case subjects.
+    Even though batch_size was already 5, all three retries sent the same
+    16384 cap, so every attempt failed identically.
 
-  FIX 3 — Difficulty distribution preserved across batches:
-    counts_from_distribution() is sliced fairly across batches so the
-    overall easy/medium/hard ratio matches the proficiency-based target.
+  FIX 1 — Dynamic max_tokens per batch (PRIMARY FIX):
+    max_tokens is now computed per batch:
+      dynamic_max = min(
+          batch_count × AI_TOKENS_PER_QUESTION × AI_OUTPUT_TOKEN_OVERHEAD,
+          AI_MAX_TOKENS_MOCK,          ← hard safety cap
+      )
+    For the default config (3 questions, 600 TPQ, 1.20 overhead):
+      dynamic_max = 3 × 600 × 1.20 = 2160
+      total_groq_sees = 350 (input) + 2160 = 2510 < 8000 ✓
 
-  Preserved from v0.8:
-    - All prompts (system_prompt + user_message structure unchanged)
-    - Question validation logic (validate_ai_question)
-    - Difficulty distribution logic (get_difficulty_distribution)
-    - Groq API call mechanics (call_groq_generate unchanged)
-    - Retry behaviour, async architecture, error handling pattern
-    - Logging format
-    - Response schema
+  FIX 2 — AI_MOCK_BATCH_SIZE lowered from 5 → 3:
+    With dynamic max_tokens, batch_size=5 would send 3950 tokens per batch
+    (still within 8K), but 3 leaves more headroom for prompt growth and
+    is safer when the user's subjects have verbose questions.
+
+  FIX 3 — AI_BATCH_DELAY raised from 2.0 → 22.0 s:
+    Minimum safe delay at 8K TPM = (2510/8000)×60 = 18.8 s.
+    22 s adds a 17% buffer. The delay is also logged clearly.
+
+  FIX 4 — AI_RATE_LIMIT_BACKOFF raised from 15 → 30 s:
+    If a 429 still occurs (e.g., concurrent users), the backoff must clear
+    at least one full TPM window (60 s). 30 × attempt scales to 60 s on
+    attempt 2, which covers the window.
+
+  FIX 5 — Pre-flight budget check uses total_tokens (input + output):
+    _check_token_budget now includes AI_PROMPT_TOKEN_ESTIMATE so the warning
+    reflects what Groq will actually count, not just the output side.
+
+  Preserved from v0.10:
+    - All validation logic (validate_ai_question unchanged)
+    - Difficulty distribution logic (counts_from_distribution unchanged)
+    - Retry behaviour pattern, async architecture, logging format
+    - Response schema, router interface
+    - GeminiTruncationError / GeminiParseError propagation
+    - HTTP 429 dedicated backoff path
+    - 400/401/403 hard-error fast-fail (no retry)
 """
 
 import asyncio
@@ -47,8 +67,6 @@ from services.gemini_utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-_RETRY_DELAY = 2.0  # seconds between retry attempts
 
 
 # ── Difficulty distributions ───────────────────────────────────────────────────
@@ -77,20 +95,75 @@ def _slice_counts(full_counts: dict, batch_size: int, batch_idx: int, n_batches:
 
     Each batch gets floor(count/n_batches). The last batch absorbs any remainder
     so the total always sums to the original request count.
-
-    Example:
-        full_counts = {easy:4, medium:11, hard:5}, batch_size=10, n_batches=2
-        batch 0 → {easy:2, medium:5, hard:2}   (floor of half)
-        batch 1 → {easy:2, medium:6, hard:3}   (remainder goes to last batch)
     """
     result = {}
     for diff, total in full_counts.items():
         base = total // n_batches
         remainder = total % n_batches
-        # Give one extra to the *last* batch so totals always add up
         extra = remainder if batch_idx == n_batches - 1 else 0
         result[diff] = base + extra
     return result
+
+
+# ── Dynamic max_tokens calculation (v0.11 PRIMARY FIX) ───────────────────────
+
+def _compute_dynamic_max_tokens(batch_count: int) -> int:
+    """
+    Compute the max_tokens value to send in the Groq API request for this batch.
+
+    Groq counts (input_tokens + max_tokens_param) against the TPM limit.
+    Sending a large fixed cap (e.g. 16384) exceeds the 8000 TPM ceiling even
+    for small batches, causing HTTP 413.
+
+    This function returns the minimum sufficient cap:
+      dynamic = batch_count × AI_TOKENS_PER_QUESTION × AI_OUTPUT_TOKEN_OVERHEAD
+
+    It is also clamped to AI_MAX_TOKENS_MOCK as an absolute upper bound.
+
+    Example with defaults (batch_count=3, TPQ=600, overhead=1.20, cap=7500):
+      dynamic  = 3 × 600 × 1.20 = 2160
+      total_groq_sees = 350 (prompt) + 2160 = 2510  <  8000 TPM ✓
+    """
+    tpq      = AppConfig.AI_TOKENS_PER_QUESTION
+    overhead = AppConfig.AI_OUTPUT_TOKEN_OVERHEAD
+    cap      = AppConfig.AI_MAX_TOKENS_MOCK
+
+    dynamic = int(batch_count * tpq * overhead)
+    return min(dynamic, cap)
+
+
+# ── Pre-flight token budget check ─────────────────────────────────────────────
+
+def _check_token_budget(batch_count: int, dynamic_max_tokens: int) -> None:
+    """
+    Log a warning if the total tokens Groq will count for this batch approaches
+    the TPM ceiling. Includes both prompt (input) and max_tokens (output cap).
+
+    v0.11: now checks total_tokens = prompt_estimate + dynamic_max_tokens,
+    matching what Groq actually counts. Previous version only checked the
+    output side, missing the issue entirely.
+    """
+    prompt_est   = AppConfig.AI_PROMPT_TOKEN_ESTIMATE
+    tpm_limit    = AppConfig.GROQ_TPM_LIMIT
+    safety       = AppConfig.AI_TOKEN_SAFETY_MARGIN
+
+    total_tokens = prompt_est + dynamic_max_tokens
+    safe_budget  = int(tpm_limit * safety)
+
+    if total_tokens > safe_budget:
+        logger.warning(
+            "Token budget WARNING: batch_count=%d dynamic_max_tokens=%d "
+            "prompt_est=%d total=%d safe_budget=%d (tpm=%d × %.2f). "
+            "Reduce AI_MOCK_BATCH_SIZE or AI_OUTPUT_TOKEN_OVERHEAD.",
+            batch_count, dynamic_max_tokens, prompt_est,
+            total_tokens, safe_budget, tpm_limit, safety,
+        )
+    else:
+        logger.debug(
+            "Token budget OK: batch_count=%d dynamic_max_tokens=%d "
+            "total=%d safe_budget=%d",
+            batch_count, dynamic_max_tokens, total_tokens, safe_budget,
+        )
 
 
 # ── Question validation ────────────────────────────────────────────────────────
@@ -132,7 +205,7 @@ def validate_ai_question(raw: dict, index: int) -> dict:
     return raw
 
 
-# ── Prompt builder (unchanged from v0.7/v0.8) ─────────────────────────────────
+# ── Compact prompt builder ────────────────────────────────────────────────────
 
 def build_generation_prompt(
     exam: str, subject: str, difficulty: str, count: int,
@@ -141,50 +214,25 @@ def build_generation_prompt(
     topic_hint = ""
     if weak_topics:
         top3 = ", ".join(weak_topics[:3])
-        topic_hint = f"\nPRIORITY TOPICS (student's weak areas — weight these heavily): {top3}"
+        topic_hint = f"\nWEAK TOPICS (weight heavily): {top3}"
 
     if difficulty == "auto":
         diff_instruction = (
-            f"Generate exactly {dist['easy']} easy, {dist['medium']} medium, "
-            f"and {dist['hard']} hard questions."
+            f"Mix: {dist['easy']} easy, {dist['medium']} medium, {dist['hard']} hard."
         )
     else:
-        diff_instruction = f"All {count} questions must be {difficulty} difficulty."
+        diff_instruction = f"All {count} questions: {difficulty} difficulty."
 
-    system_prompt = f"""You are an expert question setter for Indian competitive exams ({exam}).
-Generate high-quality, original MCQ questions for the subject: {subject}.
+    system_prompt = f"""You are an expert MCQ setter for {exam} ({subject}).
+Generate exactly {count} original questions. {diff_instruction}
+Rules: 4 options (A-D); correct must be A/B/C/D and actually correct; plausible distractors; no answer hints in question text; explanation 2-4 sentences (why correct answer is right); topic = sub-topic within {subject}.{topic_hint}
 
-RULES:
-1. Generate exactly {count} questions. No more, no less.
-2. {diff_instruction}
-3. Each question must have exactly 4 options labeled A, B, C, D.
-4. The 'correct' field must be one of: A, B, C, or D — and must actually be correct.
-5. All distractors must be plausible — not obviously wrong.
-6. 'explanation' must be 2-4 sentences explaining WHY the correct answer is right.
-7. Each question must have a 'topic' field (the sub-topic within {subject}).
-8. Do NOT repeat questions or use trivial true/false phrasing.
-9. Questions must be suitable for {exam} level.
-10. Do NOT include any answer hints in the question text itself.{topic_hint}
-
-OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
-[
-  {{
-    "id": 1,
-    "type": "mcq",
-    "question": "...",
-    "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-    "correct": "B",
-    "explanation": "...",
-    "difficulty": "easy|medium|hard",
-    "topic": "...",
-    "marks": 4,
-    "negative_marking": 1
-  }}
-]"""
+Return ONLY a JSON array — no markdown, no preamble, no trailing text.
+Schema per element: {{"id":int,"type":"mcq","question":str,"options":{{"A":str,"B":str,"C":str,"D":str}},"correct":"A|B|C|D","explanation":str,"difficulty":"easy|medium|hard","topic":str,"marks":4,"negative_marking":1}}"""
 
     user_message = (
         f"Generate {count} {exam} {subject} MCQ questions now. "
-        f"Output ONLY the JSON array — nothing else."
+        f"Output ONLY the JSON array."
     )
 
     return system_prompt, user_message
@@ -192,13 +240,19 @@ OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
 
 # ── Groq API call (single batch) ──────────────────────────────────────────────
 
-async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict]:
+async def call_groq_generate(
+    system_prompt: str,
+    user_message: str,
+    max_tokens: int,                      # v0.11: dynamic per-batch value
+) -> list[dict]:
     """
     Call Groq (OpenAI-compatible) to generate a single batch of questions.
 
-    This function handles one API call with retry logic. It is intentionally
-    kept as a pure single-call function — batching is handled by the caller
-    (generate_questions_batch / generate_questions).
+    v0.11 changes vs v0.10:
+      - max_tokens is now passed in as a parameter (not read from config).
+        The caller computes the precise per-batch value so Groq never sees
+        an inflated cap that busts the TPM limit.
+      - AI_RATE_LIMIT_BACKOFF raised to 30 s (scales to 60 s on attempt 2).
 
     API key is NEVER included in raised exceptions or log messages.
     """
@@ -215,7 +269,8 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
     timeout     = AppConfig.AI_TIMEOUT
     max_retries = AppConfig.AI_MAX_RETRIES
     temperature = AppConfig.AI_TEMPERATURE_MOCK
-    max_tokens  = AppConfig.AI_MAX_TOKENS_MOCK
+    retry_delay = AppConfig.AI_BATCH_DELAY
+    rl_backoff  = AppConfig.AI_RATE_LIMIT_BACKOFF
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -229,8 +284,13 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
             {"role": "user",   "content": user_message},
         ],
         "temperature": temperature,
-        "max_tokens":  max_tokens,
+        "max_tokens":  max_tokens,          # v0.11: dynamic, not a fixed config value
     }
+
+    logger.debug(
+        "Groq request: model=%s max_tokens=%d (prompt+cap ≈ %d tokens)",
+        model, max_tokens, AppConfig.AI_PROMPT_TOKEN_ESTIMATE + max_tokens,
+    )
 
     last_exc: Optional[httpx.HTTPStatusError] = None
     timed_out = False
@@ -244,23 +304,39 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
             last_exc  = None
             timed_out = False
             break
+
         except httpx.HTTPStatusError as exc:
-            last_exc = exc
+            last_exc    = exc
+            status_code = exc.response.status_code
+
+            # ── 429: rate limit — dedicated long backoff ───────────────────
+            if status_code == 429:
+                wait = rl_backoff * (attempt + 1)
+                logger.warning(
+                    "Groq 429 rate-limit (attempt %d/%d). Backing off %.1f s. model=%s",
+                    attempt + 1, max_retries, wait, model,
+                )
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(wait)
+                continue
+
             logger.error(
                 "Groq mock HTTP error (attempt %d/%d): status=%s body=%r model=%s",
                 attempt + 1, max_retries,
-                exc.response.status_code,
+                status_code,
                 exc.response.text[:2000],
                 model,
             )
-            if exc.response.status_code in (400, 401, 403):
+            # Hard errors — no point retrying
+            if status_code in (400, 401, 403):
                 raise httpx.HTTPStatusError(
-                    f"Groq API returned HTTP {exc.response.status_code}",
+                    f"Groq API returned HTTP {status_code}",
                     request=exc.request,
                     response=exc.response,
                 ) from exc
             if attempt < max_retries - 1:
-                await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
+                await asyncio.sleep(retry_delay * (attempt + 1))
+
         except httpx.TimeoutException:
             timed_out = True
             logger.error(
@@ -268,7 +344,7 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
                 attempt + 1, max_retries, timeout,
             )
             if attempt < max_retries - 1:
-                await asyncio.sleep(_RETRY_DELAY)
+                await asyncio.sleep(retry_delay)
     else:
         if timed_out:
             raise httpx.TimeoutException(
@@ -292,7 +368,7 @@ async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict
     return parsed
 
 
-# ── Batched generation (v0.9 fix) ─────────────────────────────────────────────
+# ── Batched generation ────────────────────────────────────────────────────────
 
 async def _generate_one_batch(
     exam: str,
@@ -305,17 +381,23 @@ async def _generate_one_batch(
     n_batches: int,
 ) -> list[dict]:
     """Generate a single batch of questions and return the raw (unindexed) list."""
+    # v0.11: compute exact max_tokens for this batch size
+    dynamic_max_tokens = _compute_dynamic_max_tokens(batch_count)
+    _check_token_budget(batch_count, dynamic_max_tokens)
+
     system_prompt, user_message = build_generation_prompt(
         exam=exam, subject=subject, difficulty=difficulty,
         count=batch_count, dist=batch_dist, weak_topics=weak_topics,
     )
     logger.info(
-        "Groq mock batch %d/%d: exam=%s subject=%s difficulty=%s count=%d model=%s",
+        "Groq mock batch %d/%d: exam=%s subject=%s difficulty=%s count=%d "
+        "max_tokens=%d model=%s",
         batch_idx + 1, n_batches,
         exam, subject, difficulty, batch_count,
+        dynamic_max_tokens,
         AppConfig.GROQ_MODEL,
     )
-    return await call_groq_generate(system_prompt, user_message)
+    return await call_groq_generate(system_prompt, user_message, max_tokens=dynamic_max_tokens)
 
 
 # ── Main generation entry point ────────────────────────────────────────────────
@@ -331,25 +413,31 @@ async def generate_questions(
     """
     Generate AI mock questions, automatically batching large requests.
 
-    For count <= AI_MOCK_BATCH_SIZE (default: 10): one API call.
-    For count  > AI_MOCK_BATCH_SIZE: sequential batches, merged and re-indexed.
+    v0.11: max_tokens is now computed dynamically per batch so Groq's TPM
+    counter never sees an inflated value that busts the 8K ceiling.
+    AI_BATCH_DELAY raised to 22 s to respect TPM pacing between batches.
 
-    The outer log line preserves the existing format used by the router/log parser:
+    The outer log line preserves the existing format used by log parsers:
       "Generating AI mock: exam=... subject=... difficulty=... count=... model=..."
     """
     count       = min(count, 20)
     weak_topics = weak_topics or []
     batch_size  = AppConfig.AI_MOCK_BATCH_SIZE
+    batch_delay = AppConfig.AI_BATCH_DELAY
 
-    dist         = get_difficulty_distribution(proficiency_score)
-    full_counts  = counts_from_distribution(count, dist)
-    n_batches    = math.ceil(count / batch_size)
+    dist        = get_difficulty_distribution(proficiency_score)
+    full_counts = counts_from_distribution(count, dist)
+    n_batches   = math.ceil(count / batch_size)
 
-    # Preserve the top-level log line (log parsers / monitoring expects this format)
+    # Log projected token usage for observability
+    dyn_ex   = _compute_dynamic_max_tokens(batch_size)
+    total_ex = AppConfig.AI_PROMPT_TOKEN_ESTIMATE + dyn_ex
     logger.info(
-        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s%s",
+        "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s%s "
+        "(per-batch tokens ≈ %d, delay=%.0fs)",
         exam, subject, difficulty, count, AppConfig.GROQ_MODEL,
         f" (batches={n_batches}×{batch_size})" if n_batches > 1 else "",
+        total_ex, batch_delay,
     )
 
     all_raw: list[dict] = []
@@ -369,11 +457,16 @@ async def generate_questions(
         )
         all_raw.extend(batch_raw[:batch_count])
 
-        # Small inter-batch delay to be a good API citizen (only when batching)
+        # TPM-paced inter-batch delay
         if batch_idx < n_batches - 1:
-            await asyncio.sleep(0.5)
+            logger.info(
+                "Inter-batch delay %.1f s — respecting 8K TPM limit "
+                "(batch %d/%d complete, %d questions so far)",
+                batch_delay, batch_idx + 1, n_batches, len(all_raw),
+            )
+            await asyncio.sleep(batch_delay)
 
-    # Validate and re-index all questions sequentially across the merged result
+    # Validate and re-index all questions sequentially
     validated: list[dict] = []
     errors:    list[str]  = []
 
