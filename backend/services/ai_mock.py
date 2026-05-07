@@ -1,14 +1,30 @@
 """
-VYAS v0.7 — AI Mock Generator Service
+VYAS v0.8 — AI Mock Generator Service
 ======================================
-Fixes applied vs v0.6:
-  ROOT CAUSE FIX: Removed `responseMimeType: "application/json"` from the
-    Gemini payload. In Gemini API 2025+, using JSON mode without a
-    `responseSchema` causes HTTP 400. _safe_json_extract() handles all
-    extraction patterns robustly, so JSON mode is not needed.
-  Model default updated to gemini-2.0-flash-001 (stable pinned version).
-  Added exponential-backoff retry (2 attempts) for transient 5xx/429 errors.
-  Enhanced error logging: full Gemini error body logged up to 2000 chars.
+v0.8 changes:
+  PROVIDER MIGRATION: Replaced Gemini API with Groq (OpenAI-compatible).
+  Root cause: Gemini API blocks Render server IPs with FAILED_PRECONDITION
+  "User location is not supported". Groq uses OpenAI chat/completions format
+  and does not geo-restrict cloud hosting providers.
+
+  Preserved from v0.7:
+    - All prompts (system_prompt + user_message structure unchanged)
+    - Question validation logic (validate_ai_question)
+    - Difficulty distribution logic
+    - Retry behaviour (2 attempts, exponential backoff)
+    - Async/await architecture
+    - Error handling pattern (ValueError, HTTPStatusError, TimeoutException)
+    - Logging format (same log messages, same log levels)
+    - Response schema (same validated question dict structure)
+
+  Changed:
+    - HTTP endpoint: Gemini generateContent → Groq /chat/completions
+    - Auth: query-param key → Authorization: Bearer header
+    - Payload: Gemini system_instruction/contents → OpenAI messages array
+    - Response extraction: Gemini candidates[0] → Groq choices[0].message.content
+    - Config source: os.getenv direct → AppConfig properties
+    - Model env var: GEMINI_MODEL_MOCK → GROQ_MODEL
+    - API key env var: GEMINI_API_KEY_MOCK → GROQ_API_KEY
 """
 
 import asyncio
@@ -18,23 +34,19 @@ from typing import Optional
 
 import httpx
 
+from config import AppConfig
 from services.gemini_utils import (
     _safe_json_extract,
-    check_finish_reason,
-    extract_raw_text,
+    extract_raw_text_groq,
+    check_finish_reason_groq,
     GeminiParseError,
     GeminiTruncationError,
 )
 
 logger = logging.getLogger(__name__)
 
-GEMINI_TIMEOUT = 50.0
-GEMINI_RETRY_ATTEMPTS = 2
-GEMINI_RETRY_DELAY = 2.0  # seconds
-
-_GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-)
+# ── Retry / timeout constants (read from AppConfig so they're env-overridable) ─
+_RETRY_DELAY = 2.0  # seconds between retry attempts
 
 
 # ── Difficulty distributions ───────────────────────────────────────────────────
@@ -96,7 +108,7 @@ def validate_ai_question(raw: dict, index: int) -> dict:
     return raw
 
 
-# ── Prompt builder ─────────────────────────────────────────────────────────────
+# ── Prompt builder (unchanged from v0.7) ──────────────────────────────────────
 
 def build_generation_prompt(
     exam: str, subject: str, difficulty: str, count: int,
@@ -154,100 +166,107 @@ OUTPUT FORMAT — Return ONLY a valid JSON array, no markdown, no preamble:
     return system_prompt, user_message
 
 
-# ── Gemini API call ────────────────────────────────────────────────────────────
+# ── Groq API call ──────────────────────────────────────────────────────────────
 
-async def call_gemini_generate(system_prompt: str, user_message: str) -> list[dict]:
+async def call_groq_generate(system_prompt: str, user_message: str) -> list[dict]:
     """
-    Call Gemini to generate questions.
+    Call Groq (OpenAI-compatible) to generate mock questions.
 
-    ROOT CAUSE FIX (v0.7):
-      `responseMimeType: "application/json"` REMOVED from payload.
-      In Gemini API 2025+, JSON mode without `responseSchema` returns HTTP 400.
-      _safe_json_extract() handles all JSON patterns robustly — no JSON mode needed.
+    Uses:
+      - GROQ_API_KEY  — Bearer token auth
+      - GROQ_MODEL    — model identifier (default: openai/gpt-oss-120b)
+      - GROQ_BASE_URL — API base (default: https://api.groq.com/openai/v1)
+      - AI_TIMEOUT, AI_MAX_RETRIES, AI_TEMPERATURE_MOCK, AI_MAX_TOKENS_MOCK
 
-    API key URL is NEVER included in raised exceptions.
+    API key is NEVER included in raised exceptions or log messages.
     """
-    api_key = os.getenv("GEMINI_API_KEY_MOCK", "").strip()
+    api_key = AppConfig.GROQ_API_KEY
     if not api_key:
-        raise ValueError("GEMINI_API_KEY_MOCK is not configured.")
+        raise ValueError("GROQ_API_KEY is not configured.")
 
-    # v0.7: default is stable pinned version, not floating alias
-    gemini_model = os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash-001").strip()
-    if not gemini_model:
-        raise ValueError("GEMINI_MODEL_MOCK is not configured.")
+    model = AppConfig.GROQ_MODEL
+    if not model:
+        raise ValueError("GROQ_MODEL is not configured.")
 
-    url = _GEMINI_URL.format(model=gemini_model, key=api_key)
+    base_url    = AppConfig.GROQ_BASE_URL.rstrip("/")
+    url         = f"{base_url}/chat/completions"
+    timeout     = AppConfig.AI_TIMEOUT
+    max_retries = AppConfig.AI_MAX_RETRIES
+    temperature = AppConfig.AI_TEMPERATURE_MOCK
+    max_tokens  = AppConfig.AI_MAX_TOKENS_MOCK
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type":  "application/json",
+    }
 
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
-        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-        "generationConfig": {
-            "temperature":     0.5,
-            "maxOutputTokens": 8192,
-            # responseMimeType intentionally OMITTED — causes HTTP 400 in
-            # Gemini API 2025+ when used without responseSchema.
-            # _safe_json_extract() handles all extraction patterns.
-        },
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_message},
+        ],
+        "temperature": temperature,
+        "max_tokens":  max_tokens,
     }
 
     last_exc: Optional[httpx.HTTPStatusError] = None
     timed_out = False
+    response: Optional[httpx.Response] = None
 
-    for attempt in range(GEMINI_RETRY_ATTEMPTS):
+    for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-                response = await client.post(url, json=payload)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
-            last_exc = None
+            last_exc  = None
             timed_out = False
-            break  # success
+            break  # success — exit retry loop
         except httpx.HTTPStatusError as exc:
             last_exc = exc
             logger.error(
-                "Gemini mock HTTP error (attempt %d/%d): status=%s body=%r model=%s",
-                attempt + 1, GEMINI_RETRY_ATTEMPTS,
+                "Groq mock HTTP error (attempt %d/%d): status=%s body=%r model=%s",
+                attempt + 1, max_retries,
                 exc.response.status_code,
                 exc.response.text[:2000],
-                gemini_model,
+                model,
             )
-            # 400 = bad request — no retry benefit; fail immediately
-            if exc.response.status_code == 400:
+            # 400 (bad request) or 401 (auth) — retrying won't help
+            if exc.response.status_code in (400, 401, 403):
                 raise httpx.HTTPStatusError(
-                    f"Gemini API returned HTTP {exc.response.status_code}",
+                    f"Groq API returned HTTP {exc.response.status_code}",
                     request=exc.request,
                     response=exc.response,
                 ) from exc
-            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(GEMINI_RETRY_DELAY * (attempt + 1))
+            if attempt < max_retries - 1:
+                await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
         except httpx.TimeoutException:
             timed_out = True
             logger.error(
-                "Gemini mock timeout (attempt %d/%d) after %.1fs",
-                attempt + 1, GEMINI_RETRY_ATTEMPTS, GEMINI_TIMEOUT,
+                "Groq mock timeout (attempt %d/%d) after %.1fs",
+                attempt + 1, max_retries, timeout,
             )
-            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(GEMINI_RETRY_DELAY)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(_RETRY_DELAY)
     else:
         # Exhausted all retries
         if timed_out:
             raise httpx.TimeoutException(
-                f"Gemini mock timed out after {GEMINI_RETRY_ATTEMPTS} attempts."
+                f"Groq mock timed out after {max_retries} attempts."
             )
         if last_exc is not None:
             raise httpx.HTTPStatusError(
-                f"Gemini API returned HTTP {last_exc.response.status_code}",
+                f"Groq API returned HTTP {last_exc.response.status_code}",
                 request=last_exc.request,
                 response=last_exc.response,
             ) from last_exc
 
     data = response.json()
 
-    # B5: check finishReason BEFORE touching content
-    check_finish_reason(data)
-    raw_text = extract_raw_text(data)
-
-    # B3: safe JSON extraction
-    parsed = _safe_json_extract(raw_text)
+    # Extract and parse response content
+    check_finish_reason_groq(data)
+    raw_text = extract_raw_text_groq(data)
+    parsed   = _safe_json_extract(raw_text)
 
     if not isinstance(parsed, list):
         raise GeminiParseError(f"Expected a JSON array, got {type(parsed).__name__}")
@@ -278,10 +297,9 @@ async def generate_questions(
 
     logger.info(
         "Generating AI mock: exam=%s subject=%s difficulty=%s count=%d model=%s",
-        exam, subject, difficulty, count,
-        os.getenv("GEMINI_MODEL_MOCK", "gemini-2.0-flash-001"),
+        exam, subject, difficulty, count, AppConfig.GROQ_MODEL,
     )
-    raw_questions = await call_gemini_generate(system_prompt, user_message)
+    raw_questions = await call_groq_generate(system_prompt, user_message)
 
     validated = []
     errors    = []
@@ -292,7 +310,6 @@ async def generate_questions(
             errors.append(str(exc))
 
     if errors:
-        # P3: use logger instead of print
         logger.warning(
             "AI mock validation errors (%d/%d): %s",
             len(errors), len(raw_questions),

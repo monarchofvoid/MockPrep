@@ -1,12 +1,22 @@
 """
-VYAS v0.6 — Gemini Response Utilities
-=======================================
-Centralised safe JSON extraction from Gemini API responses.
+VYAS v0.8 — AI Response Utilities
+====================================
+Centralised safe JSON extraction from AI API responses.
+
+Supports two response formats:
+  - Gemini (legacy, kept for reference): candidates[0].content.parts[0].text
+  - Groq / OpenAI-compatible (v0.8 active): choices[0].message.content
 
 Key exports:
-  _safe_json_extract(raw_text)          → dict | list
-  check_finish_reason(data, max_tokens) → None (raises on truncation)
-  extract_raw_text(data)                → str
+  _safe_json_extract(raw_text)             → dict | list   (shared by both providers)
+  check_finish_reason(data)                → None          (Gemini format)
+  extract_raw_text(data)                   → str           (Gemini format)
+  extract_raw_text_groq(data)              → str           (Groq/OpenAI format)
+  check_finish_reason_groq(data)           → None          (Groq/OpenAI format)
+
+Exception classes (routers import these — names kept stable):
+  GeminiTruncationError  (also aliased as AITruncationError)
+  GeminiParseError       (also aliased as AIParseError)
 
 All functions raise descriptive exceptions — never silently return None.
 """
@@ -82,6 +92,73 @@ def check_finish_reason(data: dict) -> None:
     except Exception as exc:
         # Structural issues — log but don't block (extract_raw_text handles those)
         logger.warning("Could not inspect finishReason: %s", exc)
+
+
+
+# ── Groq / OpenAI-compatible response extraction (v0.8) ──────────────────────
+
+def extract_raw_text_groq(data: dict) -> str:
+    """
+    Safely extract the text payload from a Groq / OpenAI-compatible response dict.
+
+    Expected structure:
+        data["choices"][0]["message"]["content"]  →  str
+
+    Also calls check_finish_reason_groq() to raise on length-truncated responses.
+
+    Raises:
+        GeminiParseError:      if the response structure is unexpected.
+        GeminiTruncationError: if finish_reason is "length".
+    """
+    check_finish_reason_groq(data)
+
+    try:
+        return data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        logger.error("Unexpected Groq response structure: %s", type(exc).__name__)
+        raise GeminiParseError(
+            "Groq returned an unexpected response structure — no text content found."
+        ) from exc
+
+
+def check_finish_reason_groq(data: dict) -> None:
+    """
+    Inspect finish_reason in the first choice of a Groq/OpenAI response.
+    Raises GeminiTruncationError if the model was cut off ("length").
+    Logs warnings for any other non-"stop" reason.
+
+    Args:
+        data: The raw parsed JSON response from Groq/OpenAI.
+    """
+    try:
+        choices = data.get("choices", [])
+        if not choices:
+            return  # No choices → handled by extract_raw_text_groq
+
+        finish_reason = choices[0].get("finish_reason", "stop")
+
+        if finish_reason == "length":
+            logger.error(
+                "Groq response truncated (finish_reason=length). "
+                "Increase max_tokens or reduce prompt size."
+            )
+            raise GeminiTruncationError(
+                "AI response was truncated due to token limit. "
+                "Please try again with fewer questions or a shorter prompt."
+            )
+
+        if finish_reason not in ("stop", None, ""):
+            logger.warning("Groq finished with non-stop reason: %s", finish_reason)
+
+    except GeminiTruncationError:
+        raise
+    except Exception as exc:
+        logger.warning("Could not inspect Groq finish_reason: %s", exc)
+
+
+# ── Provider-agnostic aliases (import these in new code) ─────────────────────
+AITruncationError = GeminiTruncationError
+AIParseError = GeminiParseError
 
 
 def _safe_json_extract(raw_text: str) -> Union[dict, list]:

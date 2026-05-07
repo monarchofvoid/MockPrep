@@ -1,12 +1,19 @@
 """
-VYAS v0.6 — Environment Configuration & Validation
+VYAS v0.8 — Environment Configuration & Validation
 =====================================================
 Single source of truth for all env variables.
 Import AppConfig from here instead of reading os.getenv() scattered everywhere.
 
 Usage:
     from config import AppConfig
-    print(AppConfig.GEMINI_API_KEY_TUTOR)
+    print(AppConfig.GROQ_API_KEY)
+
+v0.8 changes:
+  - Added Groq AI provider settings (GROQ_API_KEY, GROQ_MODEL, GROQ_BASE_URL)
+  - Added provider-agnostic AI tuning knobs (AI_TIMEOUT, AI_MAX_RETRIES,
+    AI_TEMPERATURE_MOCK, AI_TEMPERATURE_TUTOR, AI_MAX_TOKENS_MOCK,
+    AI_MAX_TOKENS_TUTOR)
+  - Kept all Gemini settings for backward compatibility during transition.
 """
 
 import os
@@ -101,7 +108,45 @@ class _AppConfig:
         # Deterministic fallback: relative to THIS file's location
         return Path(__file__).parent.parent / "question_bank"
 
-    # ── Gemini / AI ───────────────────────────────────────────────────────────
+    # ── Groq / AI (v0.8 — primary AI provider) ───────────────────────────────
+    @property
+    def GROQ_API_KEY(self) -> str:
+        return _optional("GROQ_API_KEY")
+
+    @property
+    def GROQ_MODEL(self) -> str:
+        return _optional("GROQ_MODEL", "openai/gpt-oss-120b")
+
+    @property
+    def GROQ_BASE_URL(self) -> str:
+        return _optional("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+
+    # ── Provider-agnostic AI tuning knobs ─────────────────────────────────────
+    @property
+    def AI_TIMEOUT(self) -> float:
+        return float(_optional("AI_TIMEOUT", "50.0"))
+
+    @property
+    def AI_MAX_RETRIES(self) -> int:
+        return int(_optional("AI_MAX_RETRIES", "2"))
+
+    @property
+    def AI_TEMPERATURE_MOCK(self) -> float:
+        return float(_optional("AI_TEMPERATURE_MOCK", "0.5"))
+
+    @property
+    def AI_TEMPERATURE_TUTOR(self) -> float:
+        return float(_optional("AI_TEMPERATURE_TUTOR", "0.3"))
+
+    @property
+    def AI_MAX_TOKENS_MOCK(self) -> int:
+        return int(_optional("AI_MAX_TOKENS_MOCK", "8192"))
+
+    @property
+    def AI_MAX_TOKENS_TUTOR(self) -> int:
+        return int(_optional("AI_MAX_TOKENS_TUTOR", "2048"))
+
+    # ── Gemini / AI (kept for backward compatibility — not used in v0.8) ──────
     @property
     def GEMINI_API_KEY_TUTOR(self) -> str:
         return _optional("GEMINI_API_KEY_TUTOR")

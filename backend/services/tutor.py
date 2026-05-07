@@ -1,14 +1,32 @@
 """
-VYAS v0.7 — Tutor Service
+VYAS v0.8 — Tutor Service
 ==========================
-Fixes applied vs v0.6:
-  ROOT CAUSE FIX: Removed `responseMimeType: "application/json"` from the
-    Gemini payload. In Gemini API 2025+, using JSON mode without a
-    `responseSchema` causes HTTP 400. _safe_json_extract() handles all
-    extraction patterns, so JSON mode is not required.
-  Model default updated to gemini-2.0-flash-001 (stable pinned version).
-  Added exponential-backoff retry for transient 5xx/429 errors.
-  Enhanced error logging: full Gemini error body logged up to 2000 chars.
+v0.8 changes:
+  PROVIDER MIGRATION: Replaced Gemini API with Groq (OpenAI-compatible).
+  Root cause: Gemini API blocks Render server IPs with FAILED_PRECONDITION
+  "User location is not supported". Groq uses OpenAI chat/completions format
+  and does not geo-restrict cloud hosting providers.
+
+  Preserved from v0.7:
+    - Tutor prompt structure (build_tutor_prompt unchanged)
+    - Proficiency bucket logic (get_proficiency_bucket unchanged)
+    - Cache layer (get_or_create_explanation, CACHE_TTL_DAYS unchanged)
+    - Cache key generation (make_cache_key unchanged)
+    - Behavioral note builder (build_behavioral_note unchanged)
+    - Retry behaviour (attempts, exponential backoff)
+    - Async/await architecture
+    - Error handling pattern
+    - Logging format
+    - Response schema (same explanation dict fields)
+
+  Changed:
+    - HTTP endpoint: Gemini generateContent → Groq /chat/completions
+    - Auth: query-param key → Authorization: Bearer header
+    - Payload: Gemini system_instruction/contents → OpenAI messages array
+    - Response extraction: Gemini candidates[0] → Groq choices[0].message.content
+    - Config source: os.getenv direct → AppConfig properties
+    - API key env var: GEMINI_API_KEY_TUTOR → GROQ_API_KEY
+    - Log messages: "Gemini tutor" → "Groq tutor"
 """
 
 import asyncio
@@ -22,10 +40,11 @@ import httpx
 from sqlalchemy.orm import Session
 
 import models
+from config import AppConfig
 from services.gemini_utils import (
     _safe_json_extract,
-    check_finish_reason,
-    extract_raw_text,
+    extract_raw_text_groq,
+    check_finish_reason_groq,
     GeminiParseError,
     GeminiTruncationError,
 )
@@ -33,13 +52,7 @@ from services.gemini_utils import (
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_DAYS = 7
-GEMINI_TIMEOUT = 30.0
-GEMINI_RETRY_ATTEMPTS = 2
-GEMINI_RETRY_DELAY = 2.0
-
-_GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-)
+_RETRY_DELAY   = 2.0  # seconds
 
 
 def get_proficiency_bucket(score: float) -> str:
@@ -107,94 +120,101 @@ Generate the explanation now."""
     return system_prompt, user_message
 
 
-async def call_gemini(system_prompt: str, user_message: str) -> dict:
+async def call_groq(system_prompt: str, user_message: str) -> dict:
     """
-    Call Gemini API for tutor explanations.
+    Call Groq API (OpenAI-compatible) for tutor explanations.
 
-    ROOT CAUSE FIX (v0.7):
-      `responseMimeType: "application/json"` REMOVED from payload.
-      In Gemini API 2025+, JSON mode without `responseSchema` returns HTTP 400.
-      _safe_json_extract() handles all JSON patterns — no JSON mode needed.
+    Uses:
+      - GROQ_API_KEY  — Bearer token auth
+      - GROQ_MODEL    — model identifier
+      - GROQ_BASE_URL — API base URL
+      - AI_TIMEOUT, AI_MAX_RETRIES, AI_TEMPERATURE_TUTOR, AI_MAX_TOKENS_TUTOR
 
-    API key URL is NEVER included in raised exceptions.
+    API key is NEVER included in raised exceptions or log messages.
     """
-    api_key = os.getenv("GEMINI_API_KEY_TUTOR", "").strip()
+    api_key = AppConfig.GROQ_API_KEY
     if not api_key:
-        raise ValueError("GEMINI_API_KEY_TUTOR is not configured.")
+        raise ValueError("GROQ_API_KEY is not configured.")
 
-    # v0.7: default is stable pinned version, not floating alias
-    gemini_model = os.getenv("GEMINI_MODEL_TUTOR", "gemini-2.0-flash-001").strip()
-    if not gemini_model:
-        raise ValueError("GEMINI_MODEL_TUTOR is not configured.")
+    model = AppConfig.GROQ_MODEL
+    if not model:
+        raise ValueError("GROQ_MODEL is not configured.")
 
-    url = _GEMINI_URL.format(model=gemini_model, key=api_key)
+    base_url    = AppConfig.GROQ_BASE_URL.rstrip("/")
+    url         = f"{base_url}/chat/completions"
+    timeout     = AppConfig.AI_TIMEOUT
+    max_retries = AppConfig.AI_MAX_RETRIES
+    temperature = AppConfig.AI_TEMPERATURE_TUTOR
+    max_tokens  = AppConfig.AI_MAX_TOKENS_TUTOR
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type":  "application/json",
+    }
 
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
-        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-        "generationConfig": {
-            "temperature":     0.3,
-            "maxOutputTokens": 2048,
-            # responseMimeType intentionally OMITTED — causes HTTP 400 in
-            # Gemini API 2025+ when used without responseSchema.
-            # _safe_json_extract() handles all extraction patterns.
-        },
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_message},
+        ],
+        "temperature": temperature,
+        "max_tokens":  max_tokens,
     }
 
     last_exc: Optional[httpx.HTTPStatusError] = None
     timed_out = False
+    response: Optional[httpx.Response] = None
 
-    for attempt in range(GEMINI_RETRY_ATTEMPTS):
+    for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT) as client:
-                response = await client.post(url, json=payload)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
-            last_exc = None
+            last_exc  = None
             timed_out = False
             break  # success
         except httpx.HTTPStatusError as exc:
             last_exc = exc
             logger.error(
-                "Gemini tutor HTTP error (attempt %d/%d): status=%s body=%r model=%s",
-                attempt + 1, GEMINI_RETRY_ATTEMPTS,
+                "Groq tutor HTTP error (attempt %d/%d): status=%s body=%r model=%s",
+                attempt + 1, max_retries,
                 exc.response.status_code,
                 exc.response.text[:2000],
-                gemini_model,
+                model,
             )
-            # 400 = bad request format — retrying won't help
-            if exc.response.status_code == 400:
+            # 400 (bad request) or 401/403 (auth) — retrying won't help
+            if exc.response.status_code in (400, 401, 403):
                 raise httpx.HTTPStatusError(
-                    f"Gemini API returned HTTP {exc.response.status_code}",
+                    f"Groq API returned HTTP {exc.response.status_code}",
                     request=exc.request,
                     response=exc.response,
                 ) from exc
-            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(GEMINI_RETRY_DELAY * (attempt + 1))
+            if attempt < max_retries - 1:
+                await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
         except httpx.TimeoutException:
             timed_out = True
             logger.error(
-                "Gemini tutor timeout (attempt %d/%d) after %.1fs",
-                attempt + 1, GEMINI_RETRY_ATTEMPTS, GEMINI_TIMEOUT,
+                "Groq tutor timeout (attempt %d/%d) after %.1fs",
+                attempt + 1, max_retries, timeout,
             )
-            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(GEMINI_RETRY_DELAY)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(_RETRY_DELAY)
     else:
         if timed_out:
             raise httpx.TimeoutException(
-                f"Gemini tutor timed out after {GEMINI_RETRY_ATTEMPTS} attempts."
+                f"Groq tutor timed out after {max_retries} attempts."
             )
         if last_exc is not None:
             raise httpx.HTTPStatusError(
-                f"Gemini API returned HTTP {last_exc.response.status_code}",
+                f"Groq API returned HTTP {last_exc.response.status_code}",
                 request=last_exc.request,
                 response=last_exc.response,
             ) from last_exc
 
     data = response.json()
-    # B2: check finishReason BEFORE touching content
-    check_finish_reason(data)
-    raw_text = extract_raw_text(data)
-    # B3: safe extraction — handles fences, preamble, malformed JSON
+    check_finish_reason_groq(data)
+    raw_text = extract_raw_text_groq(data)
     return _safe_json_extract(raw_text)
 
 
@@ -238,12 +258,12 @@ async def get_or_create_explanation(
         answer_changes=response_row.answer_changed_count or 0,
     )
 
-    logger.info("Calling Gemini tutor for question_id=%s bucket=%s",
+    logger.info("Calling Groq tutor for question_id=%s bucket=%s",
                 response_row.question_id, bucket)
-    explanation = await call_gemini(system_prompt, user_message)
+    explanation = await call_groq(system_prompt, user_message)
 
     if not isinstance(explanation, dict):
-        raise GeminiParseError("Gemini tutor returned a non-dict JSON object.")
+        raise GeminiParseError("Groq tutor returned a non-dict JSON object.")
 
     for field in ("opening", "core_concept", "why_correct", "memory_anchor"):
         if field not in explanation or not explanation[field]:
