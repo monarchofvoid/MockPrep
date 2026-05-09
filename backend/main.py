@@ -1,12 +1,16 @@
 """
-VYAS v0.6 — FastAPI Backend
+VYAS v2.0 — FastAPI Backend
 ==============================
-Changes vs v0.5:
-  P3: Replaced @app.on_event("startup") with modern lifespan context manager
-  P3: Replaced print() with logging throughout
-  D6: CORS origins read from config.py (production-safe)
-  D2: Profile router included
-  Logging configured at startup
+v2.0 architectural changes vs v0.6:
+  - Auth endpoints moved to routers/auth.py (access + refresh token system)
+  - SecurityHeadersMiddleware: adds X-Frame-Options, X-Content-Type-Options, etc.
+  - RequestIDMiddleware: traces each request with a unique ID
+  - CORS: credentials=True required for httpOnly cookie (refresh token)
+  - Auth now uses auth.py shim → core/security.py + core/auth.py
+  - /auth/signup, /auth/login, /auth/me, /auth/refresh, /auth/logout
+    all handled by routers/auth.py — removed from this file
+  - Legacy /users/me preserved for backward compat
+  - DB tables auto-created include new RefreshToken + LoginAttempt models
 """
 
 import json
@@ -30,27 +34,28 @@ from database import engine, get_db
 from logging_config import configure_logging
 from services.evaluation import evaluate
 from services.analytics import get_user_analytics
-from auth import get_current_user, hash_password, verify_password, create_access_token
+from auth import get_current_user
+from routers.auth import router as auth_router
 from routers.password_reset import router as password_reset_router
 from routers.contact import router as contact_router
 from routers.tutor import router as tutor_router
 from routers.ai_mock import router as ai_mock_router
 from routers.profile import router as profile_router
+from middleware.security_headers import SecurityHeadersMiddleware
+from middleware.request_id import RequestIDMiddleware
 from services.proficiency import update_user_proficiency
 from services.question_bank import load_question_json, QB_ROOT, _QB_CACHE, load_ai_mock_questions
 from services.recommendations import get_recommendations
 
-# Configure logging before anything else
 configure_logging()
 logger = logging.getLogger(__name__)
 
 
-# ── Lifespan (P3 fix: replaces deprecated @app.on_event("startup")) ───────────
+# ── Lifespan ───────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Run startup tasks, yield control, then run shutdown tasks."""
-    logger.info("VYAS v0.6 starting up...")
+    logger.info("VYAS v2.0 starting up...")
     from database import SessionLocal
     db = SessionLocal()
     try:
@@ -59,38 +64,46 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    yield  # Application runs here
+    yield
 
-    logger.info("VYAS v0.6 shutting down.")
+    logger.info("VYAS v2.0 shutting down.")
 
 
-# ─── App setup ────────────────────────────────────────────────────────────────
+# ── App setup ──────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="VYAS API",
-    description="Virtual Yield Assessment System — question banks, test sessions, evaluation, analytics",
-    version="0.6.0",
+    description="Virtual Yield Assessment System — v2.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-# D6: CORS read from config (validates wildcard in production)
+# Middleware — order matters: outermost runs first on request, last on response
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS — allow_credentials=True is REQUIRED for httpOnly cookies to be sent/received
 app.add_middleware(
     CORSMiddleware,
     allow_origins=AppConfig.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=True,   # v2.0: required for refresh token cookie
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Auto-create tables (includes new v2.0 models)
 models.Base.metadata.create_all(bind=engine)
 
 # ── Routers ────────────────────────────────────────────────────────────────────
+app.include_router(auth_router)           # v2.0: new auth router (replaces inline endpoints)
 app.include_router(password_reset_router)
 app.include_router(contact_router)
 app.include_router(tutor_router)
 app.include_router(ai_mock_router)
-app.include_router(profile_router)   # D2: new profile endpoints
+app.include_router(profile_router)
 
+
+# ── Seed helpers ───────────────────────────────────────────────────────────────
 
 def _make_mock_id(relative_path: Path) -> str:
     parts = list(relative_path.with_suffix("").parts)
@@ -98,10 +111,6 @@ def _make_mock_id(relative_path: Path) -> str:
 
 
 def seed_mock_tests(db: Session):
-    """
-    Auto-discover every JSON file in question_bank/ and upsert into mock_tests.
-    P3 fix: uses logger instead of print/silent failures.
-    """
     if not QB_ROOT.exists():
         logger.warning("QB_ROOT does not exist: %s — skipping seed", QB_ROOT)
         return
@@ -149,52 +158,14 @@ def seed_mock_tests(db: Session):
     logger.info("Seed complete: %d mock tests processed, %d errors", seeded, errors)
 
 
-# ─── Health ───────────────────────────────────────────────────────────────────
+# ── Health ─────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.6.0", "app": "VYAS"}
+    return {"status": "ok", "version": "2.0.0", "app": "VYAS"}
 
 
-# ─── Auth ─────────────────────────────────────────────────────────────────────
-
-@app.post("/auth/signup", response_model=schemas.TokenResponse, status_code=201, tags=["Auth"])
-def signup(body: schemas.SignupRequest, db: Session = Depends(get_db)):
-    if db.query(models.User).filter_by(email=body.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    user = models.User(
-        name=body.name,
-        email=body.email,
-        hashed_password=hash_password(body.password),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    token = create_access_token({"sub": str(user.id)})
-    logger.info("New user registered: id=%s", user.id)
-    return schemas.TokenResponse(access_token=token, user=user)
-
-
-@app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Auth"])
-def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(email=body.email).first()
-    if not user or not verify_password(body.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
-    token = create_access_token({"sub": str(user.id)})
-    return schemas.TokenResponse(access_token=token, user=user)
-
-
-@app.get("/auth/me", response_model=schemas.UserOut, tags=["Auth"])
-def get_me(current_user: models.User = Depends(get_current_user)):
-    return current_user
-
-
-# ─── Module A — Question Bank / Paper Catalogue ───────────────────────────────
+# ── Mock Paper Catalogue ───────────────────────────────────────────────────────
 
 @app.get("/mocks", response_model=List[schemas.MockTestOut], tags=["Papers"])
 def list_mocks(
@@ -216,7 +187,7 @@ def get_mock(
     return mock
 
 
-# ─── Module B — Mock Test Engine: start a session ─────────────────────────────
+# ── Test Engine ────────────────────────────────────────────────────────────────
 
 @app.post("/start-attempt", response_model=schemas.StartAttemptResponse, tags=["Test Engine"])
 def start_attempt(
@@ -262,8 +233,6 @@ def start_attempt(
         total_marks=mock.total_marks,
     )
 
-
-# ─── Module C + D — Submit, track, evaluate ──────────────────────────────────
 
 @app.post("/submit-attempt", response_model=schemas.ResultsResponse, tags=["Test Engine"])
 def submit_attempt(
@@ -311,7 +280,6 @@ def submit_attempt(
     for qr in result["question_reviews"]:
         qs    = state_map.get(qr["question_id"])
         raw_q = q_raw_map.get(qr["question_id"], {})
-
         estimated = raw_q.get("estimated_time_sec")
         actual    = qs.time_spent_seconds if qs else 0
         time_eff  = round(actual / estimated, 3) if estimated and estimated > 0 else None
@@ -359,16 +327,12 @@ def submit_attempt(
         attempt_rate=result["attempt_rate"],
         time_taken_seconds=result["time_taken_seconds"],
         avg_time_per_question=result["avg_time_per_question"],
-        topic_performance=[
-            schemas.TopicPerformance(**tp) for tp in result["topic_performance"]
-        ],
-        question_reviews=[
-            schemas.QuestionReview(**qr) for qr in result["question_reviews"]
-        ],
+        topic_performance=[schemas.TopicPerformance(**tp) for tp in result["topic_performance"]],
+        question_reviews=[schemas.QuestionReview(**qr) for qr in result["question_reviews"]],
     )
 
 
-# ─── Module E — Results & Analytics ──────────────────────────────────────────
+# ── Results & Analytics ────────────────────────────────────────────────────────
 
 @app.get("/results/{attempt_id}", response_model=schemas.ResultsResponse, tags=["Analytics"])
 def get_results(
@@ -455,8 +419,6 @@ def get_results(
     )
 
 
-# ─── Analytics & Recommendations ─────────────────────────────────────────────
-
 @app.get("/analytics/me", response_model=schemas.UserAnalytics, tags=["Analytics"])
 def my_analytics(
     current_user: models.User = Depends(get_current_user),
@@ -470,10 +432,6 @@ def my_recommendations(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    D1 Fix: Recommendations are now hard-filtered by preparing_exam from UserProfile.
-    Algorithm is fast (<50ms) — no external calls.
-    """
     return get_recommendations(db, current_user.id)
 
 
@@ -493,21 +451,21 @@ def my_attempts(
         mt = a.mock_test
         result.append({
             "attempt_id": a.id,
-            "mock_id": a.mock_id,
-            "subject": mt.subject if mt else "—",
-            "year": mt.year if mt else "—",
-            "score": a.score,
+            "mock_id":    a.mock_id,
+            "subject":    mt.subject if mt else "—",
+            "year":       mt.year if mt else "—",
+            "score":      a.score,
             "total_marks": a.total_marks,
-            "accuracy": a.accuracy,
+            "accuracy":   a.accuracy,
             "time_taken_seconds": a.time_taken_seconds,
-            "submitted": a.submitted_at is not None,
+            "submitted":  a.submitted_at is not None,
             "started_at": a.started_at,
             "is_ai_generated": mt.is_ai_generated if mt else False,
         })
     return result
 
 
-# ─── Legacy endpoints (backwards compatibility) ───────────────────────────────
+# ── Legacy endpoints (backward compat) ─────────────────────────────────────────
 
 @app.get("/analytics/{user_id}", response_model=schemas.UserAnalytics, tags=["Analytics"])
 def user_analytics(

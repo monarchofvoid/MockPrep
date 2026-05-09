@@ -1,36 +1,34 @@
 /**
- * VYAS v0.6 — App Router
- *
- * FIX (Bug): Route params for /test and /results were named ":id" but
- * TestPage and ResultsPage both destructure `{ attemptId }` from useParams().
- * Mismatch caused attemptId === undefined → URL "/results/undefined"
- * → parseInt("undefined") = NaN → GET /results/NaN → 422 → "[object Object]".
- *
- * Fix: renamed ":id" → ":attemptId" on both routes so useParams()
- * returns the correct key.
+ * VYAS v2.0 — App Router
+ * =======================
+ * v2.0 changes:
+ *   - ProtectedRoute now uses sessionChecked (not loading) to prevent
+ *     flash-of-redirect during silent refresh startup.
+ *   - Route params preserved: :attemptId on /test and /results.
+ *   - All routes unchanged — only shell improvements.
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
-import ProtectedRoute   from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
-import LandingPage      from "./pages/LandingPage";
-import Dashboard        from "./pages/Dashboard";
-import MockBrowser      from "./pages/MockBrowser";
-import TestPage         from "./pages/TestPage";
-import ResultsPage      from "./pages/ResultsPage";
+import LandingPage         from "./pages/LandingPage";
+import Dashboard           from "./pages/Dashboard";
+import MockBrowser         from "./pages/MockBrowser";
+import TestPage            from "./pages/TestPage";
+import ResultsPage         from "./pages/ResultsPage";
 import AIMockGeneratorPage from "./pages/AIMockGeneratorPage";
-import ProfilePage      from "./pages/ProfilePage";
+import ProfilePage         from "./pages/ProfilePage";
 
-// Static / Auth pages  (each self-wraps in its own layout)
-import About            from "./pages/About";
-import Contact          from "./pages/Contact";
-import PrivacyPolicy    from "./pages/PrivacyPolicy";
-import Terms            from "./pages/Terms";
-import ForgotPassword   from "./pages/ForgotPassword";
-import ResetPassword    from "./pages/ResetPassword";
+// Static / Auth pages
+import About         from "./pages/About";
+import Contact       from "./pages/Contact";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms         from "./pages/Terms";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword  from "./pages/ResetPassword";
 
 export default function App() {
   return (
@@ -38,31 +36,30 @@ export default function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* ── Public ─────────────────────────────────────────────────── */}
-          <Route path="/"               element={<LandingPage />} />
+          {/* ── Public ──────────────────────────────────────────────── */}
+          <Route path="/" element={<LandingPage />} />
 
-          {/* ── Static pages — each self-wraps in <StaticLayout> ────────── */}
-          <Route path="/about"           element={<About />} />
-          <Route path="/contact"         element={<Contact />} />
-          <Route path="/privacy"         element={<PrivacyPolicy />} />
-          <Route path="/terms"           element={<Terms />} />
+          {/* ── Static ──────────────────────────────────────────────── */}
+          <Route path="/about"   element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms"   element={<Terms />} />
 
-          {/* ── Auth pages — own standalone layout (VyasLogo) ───────────── */}
+          {/* ── Auth flows ──────────────────────────────────────────── */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password"  element={<ResetPassword />} />
 
-          {/* ── Protected — require auth ────────────────────────────────── */}
+          {/* ── Protected — require active session ──────────────────── */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard"          element={<Dashboard />} />
             <Route path="/mocks"              element={<MockBrowser />} />
-            {/* FIX: was ":id" — useParams() key must match component destructure */}
             <Route path="/test/:attemptId"    element={<TestPage />} />
             <Route path="/results/:attemptId" element={<ResultsPage />} />
             <Route path="/ai-mock"            element={<AIMockGeneratorPage />} />
             <Route path="/profile"            element={<ProfilePage />} />
           </Route>
 
-          {/* ── 404 fallback ─────────────────────────────────────────────── */}
+          {/* ── 404 ─────────────────────────────────────────────────── */}
           <Route path="*" element={
             <div style={{
               display: "flex", flexDirection: "column",

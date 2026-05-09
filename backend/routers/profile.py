@@ -1,18 +1,17 @@
 """
-VYAS v0.6 — User Profile Router (NEW — D2)
-===========================================
+VYAS v2.0 — User Profile Router
+==================================
 Endpoints:
-  GET  /profile/me          — get own profile (or empty defaults)
-  PUT  /profile/me          — create or update own profile
-  GET  /profile/avatars     — list valid avatar codes
+  GET  /profile/me      — get own profile (or empty defaults)
+  PUT  /profile/me      — create or update own profile
+  GET  /profile/avatars — list valid avatar codes
+  GET  /profile/exams   — list supported exam codes
 
-The profile is optional — users can use VYAS without ever setting one.
-When no profile exists, GET returns sensible null defaults.
+v2.0: Updated to import get_current_user from auth shim (core/auth.py).
+All validation logic preserved from v0.6.
 """
 
 import logging
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -37,11 +36,6 @@ def get_my_profile(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Return the authenticated user's profile.
-    If no profile has been created yet, returns empty defaults (HTTP 200).
-    No 404 — profile is optional.
-    """
     profile = (
         db.query(models.UserProfile)
         .filter_by(user_id=current_user.id)
@@ -49,7 +43,6 @@ def get_my_profile(
     )
 
     if profile is None:
-        # Return empty defaults so the frontend can render the profile page
         return schemas.UserProfileOut(
             user_id         = current_user.id,
             preparing_exam  = None,
@@ -79,11 +72,6 @@ def update_my_profile(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Create or update the authenticated user's profile (upsert).
-    Validates exam and avatar values against allowed lists.
-    """
-    # ── Input validation ──────────────────────────────────────────────────────
     if body.preparing_exam is not None and body.preparing_exam not in VALID_EXAMS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -114,7 +102,6 @@ def update_my_profile(
             detail="bio must be 300 characters or fewer.",
         )
 
-    # ── Upsert profile ────────────────────────────────────────────────────────
     profile = (
         db.query(models.UserProfile)
         .filter_by(user_id=current_user.id)
@@ -128,7 +115,6 @@ def update_my_profile(
     else:
         logger.info("Updating profile for user_id=%s", current_user.id)
 
-    # Only update fields that were explicitly sent (non-None)
     update_data = body.model_dump(exclude_none=True)
     for field, value in update_data.items():
         setattr(profile, field, value)
@@ -150,11 +136,9 @@ def update_my_profile(
 
 @router.get("/avatars")
 def list_avatars():
-    """Return list of valid avatar codes (public endpoint — no auth required)."""
     return {"avatars": list(VALID_AVATARS)}
 
 
 @router.get("/exams")
 def list_exams():
-    """Return list of supported exam codes (public endpoint)."""
     return {"exams": list(VALID_EXAMS)}

@@ -1,8 +1,11 @@
 """
-VYAS v0.6 — Pydantic Schemas
+VYAS v2.0 — Pydantic Schemas
 ================================
-Changes vs v0.5:
-  D2: Added UserProfileOut, UserProfileUpdate schemas
+v2.0 changes:
+  - RefreshResponse: new schema for /auth/refresh endpoint
+  - TokenResponse: unchanged (access_token + user)
+  - SignupRequest: email normalisation note
+  - All existing schemas preserved
 """
 
 from pydantic import BaseModel, EmailStr
@@ -22,6 +25,13 @@ class LoginRequest(BaseModel):
     password: str
 
 class TokenResponse(BaseModel):
+    """Returned on signup and login. Refresh token is in httpOnly cookie, not here."""
+    access_token: str
+    token_type: str = "bearer"
+    user: "UserOut"
+
+class RefreshResponse(BaseModel):
+    """Returned on /auth/refresh. New access token + user info."""
     access_token: str
     token_type: str = "bearer"
     user: "UserOut"
@@ -43,7 +53,7 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
-# ─── User Profile (D2) ────────────────────────────────────────────────────────
+# ─── User Profile ─────────────────────────────────────────────────────────────
 
 VALID_EXAMS   = ("CUET", "GATE", "JEE", "UPSC", "NEET", "CAT", "OTHER")
 VALID_AVATARS = ("owl", "fox", "bear", "cat", "robot", "astronaut", "penguin", "tiger")
@@ -62,15 +72,15 @@ class UserProfileOut(BaseModel):
         from_attributes = True
 
 class UserProfileUpdate(BaseModel):
-    preparing_exam:  Optional[str]  = None
-    target_year:     Optional[int]  = None
-    subject_focus:   Optional[str]  = None
-    avatar:          Optional[str]  = None
-    daily_goal_mins: Optional[int]  = None
-    bio:             Optional[str]  = None
+    preparing_exam:  Optional[str] = None
+    target_year:     Optional[int] = None
+    subject_focus:   Optional[str] = None
+    avatar:          Optional[str] = None
+    daily_goal_mins: Optional[int] = None
+    bio:             Optional[str] = None
 
 
-# ─── Mock Test (paper metadata) ───────────────────────────────────────────────
+# ─── Mock Test ────────────────────────────────────────────────────────────────
 
 class MockTestOut(BaseModel):
     id: str
@@ -85,7 +95,7 @@ class MockTestOut(BaseModel):
         from_attributes = True
 
 
-# ─── Question (from JSON) ─────────────────────────────────────────────────────
+# ─── Questions ────────────────────────────────────────────────────────────────
 
 class QuestionOut(BaseModel):
     id: int
@@ -99,13 +109,12 @@ class QuestionOut(BaseModel):
     marks: float
     negative_marking: float
 
-
 class QuestionWithAnswer(QuestionOut):
     correct: str
     explanation: str
 
 
-# ─── Start Attempt ────────────────────────────────────────────────────────────
+# ─── Attempt ─────────────────────────────────────────────────────────────────
 
 class StartAttemptRequest(BaseModel):
     mock_id: str
@@ -116,9 +125,6 @@ class StartAttemptResponse(BaseModel):
     questions: List[QuestionOut]
     duration_minutes: int
     total_marks: float
-
-
-# ─── Submit Attempt ───────────────────────────────────────────────────────────
 
 class QuestionStateIn(BaseModel):
     question_id: int
@@ -134,7 +140,7 @@ class SubmitAttemptRequest(BaseModel):
     question_states: List[QuestionStateIn]
 
 
-# ─── Results ──────────────────────────────────────────────────────────────────
+# ─── Results ─────────────────────────────────────────────────────────────────
 
 class TopicPerformance(BaseModel):
     topic: str
@@ -214,10 +220,12 @@ class UserAnalytics(BaseModel):
     recent_attempts: List[AttemptSummary]
 
 
-# Resolve forward ref
+# Resolve forward refs
 TokenResponse.model_rebuild()
+RefreshResponse.model_rebuild()
 
-# ─── Password Reset ────────────────────────────────────────────────────────────
+
+# ─── Password Reset ──────────────────────────────────────────────────────────
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
@@ -227,7 +235,7 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
-# ─── Phase 1: Proficiency Engine schemas ──────────────────────────────────────
+# ─── Proficiency ─────────────────────────────────────────────────────────────
 
 class DifficultyProfile(BaseModel):
     easy:   float
@@ -259,7 +267,7 @@ class UserProficiencyResponse(BaseModel):
     topics:        List[TopicProficiency]
 
 
-# ─── Phase 2A: Tutor Schemas ──────────────────────────────────────────────────
+# ─── Tutor ───────────────────────────────────────────────────────────────────
 
 class TutorExplainRequest(BaseModel):
     attempt_id:    int
@@ -293,7 +301,7 @@ class TutorRateResponse(BaseModel):
     message:        str
 
 
-# ─── Phase 2B: AI Mock Generator Schemas ──────────────────────────────────────
+# ─── AI Mock ─────────────────────────────────────────────────────────────────
 
 class GenerateAIMockRequest(BaseModel):
     exam:            str
@@ -320,14 +328,14 @@ class AIMockHistoryResponse(BaseModel):
     ai_mocks: List[AIMockHistoryItem]
 
 
-# ─── Phase 3: Recommendation Engine Schemas ───────────────────────────────────
+# ─── Recommendations ─────────────────────────────────────────────────────────
 
 class WeakTopic(BaseModel):
-    subject:      str
-    topic:        str
-    proficiency:  float
+    subject:       str
+    topic:         str
+    proficiency:   float
     accuracy_rate: float
-    total_count:  int
+    total_count:   int
 
 class RecommendedMock(BaseModel):
     mock_id:          str
@@ -357,10 +365,8 @@ class RecommendationResponse(BaseModel):
     overall_level:        str
     overall_score:        float
     has_proficiency_data: bool
-    # Total number of questions processed into proficiency (the real "signal" count)
     total_signals:        int
     weak_topics:          List[WeakTopic]
     recommended_mocks:    List[RecommendedMock]
     ai_mock_suggestion:   Optional[AIMockSuggestion]
-    # Cold-start / onboarding card shown when exam has no papers yet
     onboarding_card:      Optional[OnboardingCard] = None

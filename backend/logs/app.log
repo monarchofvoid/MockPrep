@@ -1,0 +1,5 @@
+2026-05-09 18:50:04 | INFO     | main | VYAS v2.0 starting up...
+2026-05-09 18:50:07 | INFO     | main | Seed complete: 0 mock tests processed, 0 errors
+2026-05-09 18:50:07 | INFO     | main | Mock test seeding complete. QB_ROOT=..\question_bank
+2026-05-09 18:51:18 | INFO     | routers.auth | User login: id=5
+2026-05-09 19:03:03 | INFO     | main | VYAS v2.0 shutting down.

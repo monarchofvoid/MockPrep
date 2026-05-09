@@ -1,18 +1,27 @@
 """
-VYAS v0.6 — SQLAlchemy Models
+VYAS v2.0 — SQLAlchemy Models
 ================================
-Changes vs v0.5:
-  D2: Added UserProfile model (exam preference, avatar, daily goals, target year)
+v2.0 new models:
+  RefreshToken  — stores hashed refresh tokens for token rotation + revocation
+  LoginAttempt  — tracks failed login attempts for brute-force protection
+
+v0.6 models preserved:
+  User, UserProfile, MockTest, AIMockQuestion, Attempt, Response,
+  UserProficiency, TutorCache, TutorInteraction, PasswordReset
 """
+
+import hashlib
 
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean,
-    DateTime, ForeignKey, Text, JSON
+    DateTime, ForeignKey, Text, JSON, Index
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
+
+# ─── Auth: Password Reset ──────────────────────────────────────────────────────
 
 class PasswordReset(Base):
     __tablename__ = "password_resets"
@@ -26,24 +35,83 @@ class PasswordReset(Base):
     user = relationship("User")
 
 
+# ─── Auth: Refresh Tokens (v2.0 NEW) ──────────────────────────────────────────
+
+class RefreshToken(Base):
+    """
+    v2.0: Stores hashed refresh tokens to enable:
+      - Server-side revocation (logout, security invalidation)
+      - Token rotation (each refresh issues a new token + revokes the old)
+      - Per-device/session tracking
+    The actual token value is never stored — only SHA-256 hash.
+    """
+    __tablename__ = "refresh_tokens"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    user_agent = Column(String(300), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+
+    user = relationship("User", back_populates="refresh_tokens")
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        """SHA-256 hash of the raw token string."""
+        return hashlib.sha256(raw_token.encode()).hexdigest()
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None
+
+    def revoke(self) -> None:
+        from datetime import datetime, timezone
+        self.revoked_at = datetime.now(timezone.utc)
+
+
+# ─── Auth: Login Attempts (v2.0 NEW — brute force protection) ─────────────────
+
+class LoginAttempt(Base):
+    """
+    v2.0: Tracks login attempts per email for brute-force lockout.
+    Entries older than LOGIN_LOCKOUT_MINUTES are ignored.
+    """
+    __tablename__ = "login_attempts"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    email        = Column(String(200), nullable=False, index=True)
+    ip_address   = Column(String(45), nullable=True)
+    success      = Column(Boolean, nullable=False, default=False)
+    attempted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─── User ─────────────────────────────────────────────────────────────────────
+
 class User(Base):
     __tablename__ = "users"
 
-    id               = Column(Integer, primary_key=True, index=True)
-    name             = Column(String(100), nullable=False)
-    email            = Column(String(200), unique=True, index=True, nullable=False)
-    hashed_password  = Column(String(200), nullable=False)
-    is_active        = Column(Boolean, default=True)
-    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+    id              = Column(Integer, primary_key=True, index=True)
+    name            = Column(String(100), nullable=False)
+    email           = Column(String(200), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
-    attempts = relationship("Attempt", back_populates="user")
-    profile  = relationship("UserProfile", back_populates="user", uselist=False,
-                            cascade="all, delete-orphan")
+    attempts       = relationship("Attempt", back_populates="user")
+    profile        = relationship("UserProfile", back_populates="user", uselist=False,
+                                  cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user",
+                                  cascade="all, delete-orphan")
 
+
+# ─── User Profile ─────────────────────────────────────────────────────────────
 
 class UserProfile(Base):
     """
-    D2: One-to-one extension of User for exam preferences and personalisation.
+    One-to-one extension of User for exam preferences and personalisation.
     Created lazily on first profile save — not required for auth or testing.
     """
     __tablename__ = "user_profiles"
@@ -52,16 +120,11 @@ class UserProfile(Base):
     user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
                              unique=True, nullable=False)
 
-    # Exam & study preferences
-    preparing_exam  = Column(String(50),  nullable=True)   # e.g. "CUET", "GATE", "JEE"
-    target_year     = Column(Integer,     nullable=True)   # e.g. 2026
-    subject_focus   = Column(String(200), nullable=True)   # comma-separated subjects
-
-    # Personal customisation
-    avatar          = Column(String(50),  nullable=True)   # avatar code, e.g. "owl"
-    daily_goal_mins = Column(Integer,     nullable=True, default=60)  # minutes per day
-
-    # Bio / motivation
+    preparing_exam  = Column(String(50),  nullable=True)
+    target_year     = Column(Integer,     nullable=True)
+    subject_focus   = Column(String(200), nullable=True)
+    avatar          = Column(String(50),  nullable=True)
+    daily_goal_mins = Column(Integer,     nullable=True, default=60)
     bio             = Column(String(300), nullable=True)
 
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -70,6 +133,8 @@ class UserProfile(Base):
 
     user = relationship("User", back_populates="profile")
 
+
+# ─── Mock Tests ───────────────────────────────────────────────────────────────
 
 class MockTest(Base):
     __tablename__ = "mock_tests"
@@ -105,6 +170,8 @@ class AIMockQuestion(Base):
 
     mock_test = relationship("MockTest", back_populates="ai_questions")
 
+
+# ─── Attempts & Responses ─────────────────────────────────────────────────────
 
 class Attempt(Base):
     __tablename__ = "attempts"
@@ -158,6 +225,8 @@ class Response(Base):
     attempt = relationship("Attempt", back_populates="responses")
 
 
+# ─── Proficiency ──────────────────────────────────────────────────────────────
+
 class UserProficiency(Base):
     __tablename__ = "user_proficiency"
 
@@ -186,6 +255,8 @@ class UserProficiency(Base):
 
     user = relationship("User")
 
+
+# ─── Tutor ────────────────────────────────────────────────────────────────────
 
 class TutorCache(Base):
     __tablename__ = "tutor_cache"

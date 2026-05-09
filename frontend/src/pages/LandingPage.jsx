@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login as apiLogin, signup as apiSignup } from "../api/client";
 import VyasLogo from "../components/VyasLogo";
@@ -187,6 +187,8 @@ function StepCard({ step, index }) {
 export default function LandingPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/dashboard";
 
   /* auth modal state ─────────────────────────────────────── */
   const [modalOpen, setModalOpen] = useState(false);
@@ -204,7 +206,7 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
+    if (user) navigate(from, { replace: true });
   }, [user, navigate]);
 
   /* scroll-reveal refs for hero elements ─────────────────── */
@@ -249,7 +251,7 @@ export default function LandingPage() {
           ? await apiLogin(formData.email, formData.password)
           : await apiSignup(formData.name.trim(), formData.email, formData.password);
       login(payload);
-      navigate("/dashboard");
+      navigate(from);
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
