@@ -25,7 +25,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import HistorySkeleton from '@/components/skeletons/Historyskeleton';
-import { generateMockTest, getJobStatus, startAttempt, listMyJobs, getRecommendations, type AIJob } from '@/lib/api';
+import { generateMockTest, getJobStatus, startAttempt, listMyJobs, getRecommendations } from '@/lib/api';
 import { writeHandoff, type Question } from '@/lib/utils';
 import styles from '@/styles/AIMockGeneratorPage.module.css';
 
@@ -158,9 +158,7 @@ export default function AIMockPage() {
 
   // Phase 3: proficiency personalisation
   const [hasProficiency, setHasProficiency] = useState(false);
-  const [aiSuggestion,   setAiSuggestion]   = useState<{
-    exam: string; subject: string; difficulty: string; reason: string;
-  } | null>(null);
+  const [aiSuggestion,   setAiSuggestion]   = useState<{ reason: string } | null>(null);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -183,22 +181,14 @@ export default function AIMockPage() {
       const [jobs, rec] = await Promise.all([
         listMyJobs(),
         getRecommendations(),
-      ]) as [AIJob[], {
-        has_proficiency_data?: boolean;
-        ai_mock_suggestion?: { exam: string; subject: string; difficulty: string; reason: string };
-      }];
+      ]);
 
-      // Cast AIJob[] to HistoryItem[] — shapes are compatible after BUG-F5 fix
       setHistory((jobs as unknown as HistoryItem[]) || []);
       setHasProficiency(rec.has_proficiency_data || false);
 
       const sugg = rec.ai_mock_suggestion;
       if (sugg) {
         setAiSuggestion(sugg);
-        if (EXAMS.includes(sugg.exam))                             setExam(sugg.exam);
-        const subjectList = SUBJECTS_BY_EXAM[sugg.exam] || ['General'];
-        if (subjectList.includes(sugg.subject))                    setSubject(sugg.subject);
-        if (['easy', 'medium', 'hard'].includes(sugg.difficulty))  setDifficulty(sugg.difficulty as 'easy' | 'medium' | 'hard');
       }
     } catch {
       // non-critical — silently fail

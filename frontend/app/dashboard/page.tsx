@@ -41,7 +41,6 @@ import {
   getRecommendations,
   type Analytics,
   type Recommendations,
-  type Attempt,
 } from '@/lib/api'
 import Navbar from '@/components/Navbar'
 import DashboardSkeleton from '@/components/skeletons/DashboardSkeleton'
@@ -287,7 +286,7 @@ export default function Dashboard() {
               )}
             </section>
 
-            {recommendations?.onboarding_card && (
+            {recommendations && recommendations.onboarding_card && (
               <div className={styles.coldStartBox}>
                 <span className={styles.vyasGlyph}>✦</span>
                 <div>
@@ -300,7 +299,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {recommendations?.has_proficiency_data && recommendations.weak_topics.length > 0 && (
+            {recommendations && recommendations.has_proficiency_data && recommendations.weak_topics.length > 0 && (
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <div>
@@ -329,7 +328,7 @@ export default function Dashboard() {
               </section>
             )}
 
-            {recommendations?.recommended_mocks?.length > 0 && (
+            {recommendations && recommendations.recommended_mocks.length > 0 && (
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <div>
