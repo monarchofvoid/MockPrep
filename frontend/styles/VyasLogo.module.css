@@ -1,0 +1,65 @@
+/* VYAS Logo — v2.1: fluid spring-curve animations */
+
+.logo {
+  display: inline-block;
+  flex-shrink: 0;
+  overflow: visible;
+  transform-origin: center;
+  transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              filter 240ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.logo:hover {
+  transform: scale(1.07);
+  animation: logoGlowPulse 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.logoPath {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Draw-in animation — paths stroke onto canvas */
+.animate .logoPath {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  animation: drawPath 480ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate .outerLeft  { animation-delay: 0ms; }
+.animate .outerRight { animation-delay: 160ms; }
+.animate .innerLeft  {
+  animation-duration: 420ms;
+  animation-delay: 440ms;
+}
+.animate .innerRight {
+  animation-duration: 420ms;
+  animation-delay: 600ms;
+}
+.animate .crown {
+  animation-duration: 380ms;
+  animation-delay: 860ms;
+}
+.animate .diamond {
+  opacity: 0;
+  stroke-dashoffset: 0;
+  transform: scale(0.6);
+  animation: diamondReveal 320ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 1180ms;
+}
+
+@keyframes drawPath {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes diamondReveal {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes logoGlowPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(212, 168, 67, 0.22)); }
+  50%       { filter: drop-shadow(0 0 20px rgba(212, 168, 67, 0.5)); }
+}

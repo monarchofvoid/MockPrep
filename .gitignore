@@ -1,23 +1,248 @@
-# Python
+# ════════════════════════════════════════════════════════════════════════════
+# VYAS v2 — Root .gitignore
+# Covers: Next.js 15 (frontend/) + FastAPI / Python (backend/)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECRETS & ENVIRONMENT  (CRITICAL — never commit these)
+# ─────────────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+!backend/env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+secrets/
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEXT.JS / FRONTEND
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Build outputs
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# TypeScript incremental build cache (auto-regenerated — never commit)
+frontend/tsconfig.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Next.js auto-generated type declarations (regenerated on every build)
+frontend/next-env.d.ts
+
+# Vercel deployment
+frontend/.vercel/
+
+# Test coverage
+frontend/coverage/
+
+# Storybook (if added later)
+frontend/storybook-static/
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PYTHON / BACKEND
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Byte-compiled / optimised / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
+*.pyd
+*.so
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+sdist/
+develop-eggs/
+eggs/
+parts/
+var/
+MANIFEST
+
+# Virtual environments
 venv/
-.env
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+.pyenv/
+.python-version.local
+
+# PyInstaller
+*.spec
+
+# PIP
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytest_cache/
+nosetests.xml
+test-results/
+
+# mypy / pyright / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+pyrightconfig.json
+
+# Alembic — generated migration artefacts (keep versions/ tracked)
+# (alembic.ini and alembic/versions/*.py should be committed)
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+celerybeat-schedule.db
+
+# APScheduler SQLite job store (if used locally — production uses Redis)
+apscheduler.sqlite
+
+# SQLite local dev databases
 *.db
+*.sqlite
 *.sqlite3
 
-# Node
-node_modules/
-dist/
-.env
-.env.local
+# Sentry / profiling
+.sentryclirc
 
-# OS
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGS
+# ─────────────────────────────────────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+log/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCKER  (keep Dockerfile and docker-compose.yml committed)
+# ─────────────────────────────────────────────────────────────────────────────
+# Ignore Docker-related runtime artefacts, not the config files themselves
+.docker/
+docker-data/
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OS & EDITOR CRUFT
+# ─────────────────────────────────────────────────────────────────────────────
+
+# macOS
 .DS_Store
-Thumbs.db
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.fseventsd/
+.TemporaryItems
 
-# IDE
-.vscode/
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
 .idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# Vim / Emacs
 *.swp
+*.swo
+*~
+\#*\#
+.#*
+*.orig
+
+# Cursor
+.cursor/
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PACKAGE MANAGERS
+# ─────────────────────────────────────────────────────────────────────────────
+# npm / yarn (root-level, if any tooling is ever added)
+node_modules/
+.npm/
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnpm-store/
+
+# pip user installs
+.local/
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MONITORING & OBSERVABILITY
+# ─────────────────────────────────────────────────────────────────────────────
+.sentry/
+newrelic.ini
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RUNTIME / TEMPORARY FILES
+# ─────────────────────────────────────────────────────────────────────────────
+tmp/
+temp/
+.tmp/
+*.tmp
+*.bak
+*.orig
+*.pid

@@ -1,0 +1,21 @@
+# ── Dev-only backend image ─────────────────────────────────────────────────
+# Not used in production (Render builds from requirements.txt directly).
+# Optimised for fast rebuilds: dependencies layer cached separately from code.
+
+FROM python:3.11-slim
+
+# System deps for psycopg2-binary and cryptography
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc curl && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps first (cached unless requirements.txt changes)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source (overridden by volume mount in docker-compose.yml)
+COPY . .
+
+EXPOSE 8000

@@ -1,225 +1,298 @@
 """
-VYAS v0.10 — AI Mock Router
-=============================
-v0.10 fixes vs v0.6:
-  CRITICAL BUG FIX: GeminiTruncationError extends ValueError. The old
-    exception handler order (ValueError first) meant GeminiTruncationError
-    was silently caught as ValueError, returning HTTP 422 instead of 503.
-    Fixed by moving GeminiTruncationError handler BEFORE ValueError handler.
-  Preserved from v0.6:
-    B1: Granular exception handling — API key/URL never in responses
-    B5: finishReason check delegated to service layer (gemini_utils)
+VYAS v2.2.0 — AI Mock Generation Router
+========================================
+v2.2.0 Migration: Celery → asyncio.create_task
+
+Changes from v2.1.5:
+  1. create_mock_test() converted from `def` to `async def`.
+     Required because service.enqueue_job() calls asyncio.create_task(), which
+     requires a running event loop. FastAPI async endpoints always run in the
+     event loop; sync endpoints do not.
+
+  2. Error message updated: "Celery dispatch FAILED" → "Task dispatch FAILED".
+
+All security hardening from v2.1.5 is fully preserved and unchanged.
 """
 
 import logging
-import time
-from datetime import datetime, timezone
+import re
+import traceback
 
-import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
-import models
-import schemas
+from core.auth import get_current_user
+from core.config import get_settings
+from core.exceptions import (
+    AIJobAlreadyActiveError,
+    AIJobNotFoundError,
+    InsufficientCreditsError,
+    ProfileIncompleteError,
+)
 from database import get_db
-from auth import get_current_user
-from services.ai_mock import generate_questions, get_difficulty_distribution
-from services.gemini_utils import GeminiParseError, GeminiTruncationError
+from middleware.rate_limit import ai_rate_limit
+from models.user import User
+from schemas.ai_mock import (
+    AIJobStatusResponse,
+    CancelJobResponse,
+    CreateMockTestRequest,
+    CreateMockTestResponse,
+)
+from services.ai_job_service import AIJobService
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
-router = APIRouter(prefix="/ai-mock", tags=["AI Mock Generator"])
+router = APIRouter(prefix="/api/v1/mock-tests", tags=["AI Mock Tests"])
+ai_jobs_router = APIRouter(prefix="/api/v1/ai-jobs", tags=["AI Jobs"])
 
-MAX_QUESTIONS   = 20
-MIN_QUESTIONS   = 3
-MINS_PER_QUESTION = 2.5
+_JOB_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
 
 
-@router.post("/generate", response_model=schemas.StartAttemptResponse)
-async def generate_ai_mock(
-    body: schemas.GenerateAIMockRequest,
-    current_user: models.User = Depends(get_current_user),
+def _validate_job_id(job_id: str, param_name: str = "job_id") -> str:
+    if not _JOB_ID_PATTERN.match(job_id):
+        raise HTTPException(status_code=400, detail=f"Invalid {param_name} format.")
+    return job_id
+
+
+# ── Create Mock Test (Start AI Job) ──────────────────────────────────────────
+
+@router.post("/generate", response_model=CreateMockTestResponse, status_code=202)
+async def create_mock_test(
+    body: CreateMockTestRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _rate_limit: None = Depends(ai_rate_limit),
 ):
     """
-    B1 Fix: Exception handling never exposes API keys or URLs.
-    B6 Fix: Granular exception types (ValueError, GeminiTruncationError,
-            GeminiParseError, httpx.HTTPStatusError, httpx.TimeoutException).
+    Start an asynchronous AI mock test generation job.
+    Deducts credits atomically. Returns job_id for status polling.
+
+    v2.2.0: Endpoint is now `async def` to support asyncio.create_task() in
+    service.enqueue_job(). Returns HTTP 202 immediately; AI generation runs
+    concurrently as an asyncio task in the event loop.
     """
-    count = max(MIN_QUESTIONS, min(body.question_count, MAX_QUESTIONS))
+    service = AIJobService(db)
 
-    if body.difficulty not in ("auto", "easy", "medium", "hard"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="difficulty must be one of: auto, easy, medium, hard",
-        )
-
-    proficiency_score = 400.0
-    weak_topics: list[str] = []
-
-    if body.use_proficiency:
-        prof_rows = (
-            db.query(models.UserProficiency)
-            .filter_by(user_id=current_user.id, subject=body.subject)
-            .all()
-        )
-        if prof_rows:
-            proficiency_score = sum(r.proficiency for r in prof_rows) / len(prof_rows)
-            weak_topics = [
-                r.topic for r in prof_rows
-                if r.accuracy_rate < 0.50 and r.total_count >= 3
-            ]
-
-    # ── IMPORTANT: GeminiTruncationError extends ValueError.
-    # It MUST be caught before ValueError, otherwise Python's first-match
-    # rule silently routes it to the ValueError handler (HTTP 422) instead
-    # of the correct HTTP 503 — the bug present in v0.6.
     try:
-        questions = await generate_questions(
-            exam=body.exam,
+        job, cost_microcredits = service.create_job_with_deduction(
+            user_id=current_user.id,
+            exam=body.exam_type,
             subject=body.subject,
             difficulty=body.difficulty,
-            count=count,
-            proficiency_score=proficiency_score,
-            weak_topics=weak_topics,
+            question_count=body.num_questions,
         )
-    except GeminiTruncationError as exc:
-        # Truncation = Groq hit max_tokens. Return 503 (transient, retriable).
-        logger.warning("AI mock truncated for user=%s: %s", current_user.id, exc)
+        db.commit()
+
+    except AIJobAlreadyActiveError as exc:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            status_code=400,
+            detail={
+                "error": "active_job_exists",
+                "message": exc.message,
+                "existing_job_id": exc.details.get("existing_job_id"),
+            },
         )
-    except GeminiParseError as exc:
-        logger.error("AI mock parse error for user=%s: %s", current_user.id, exc)
+    except InsufficientCreditsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI service returned an invalid response. Please retry.",
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": exc.message,
+                "available_credits": exc.details.get("available_credits"),
+                "required_credits": exc.details.get("required_credits"),
+            },
         )
-    except ValueError as exc:
+    except ProfileIncompleteError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
+            status_code=422,
+            detail={
+                "error": "profile_incomplete",
+                "message": exc.message,
+                "missing_fields": exc.details.get("missing_fields", []),
+            },
         )
-    except httpx.HTTPStatusError as exc:
-        logger.error("AI mock HTTP error: status=%s user=%s",
-                     exc.response.status_code, current_user.id)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI service error (HTTP {exc.response.status_code}). Please retry.",
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(
+            "create_mock_test FAILED: user_id=%s subject=%s error=%s\n%s",
+            current_user.id, body.subject, exc, traceback.format_exc(),
         )
-    except httpx.TimeoutException:
-        logger.error("AI mock request timed out for user=%s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="AI service timed out. Please retry in a moment.",
+            status_code=500,
+            detail="Failed to start mock test generation. Please try again.",
         )
 
-    actual_count = len(questions)
-    timestamp    = int(time.time())
-    mock_id      = f"ai_{body.exam}_{body.subject}_{body.difficulty}_{timestamp}".replace(" ", "_")
+    # v2.2.0: enqueue_job() calls asyncio.create_task(_run_ai_generation()).
+    # Returns immediately; generation runs in background event loop.
+    try:
+        service.enqueue_job(job)
+    except Exception as exc:
+        db.rollback()
+        logger.error(
+            "Task dispatch FAILED for job_id=%s: %s\n%s",
+            job.id, exc, traceback.format_exc(),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="AI generation service temporarily unavailable. Please try again in a moment.",
+        )
 
-    dist        = get_difficulty_distribution(proficiency_score)
-    total_marks = float(actual_count * 4)
-    duration    = max(5, round(actual_count * MINS_PER_QUESTION))
-
-    mock = models.MockTest(
-        id               = mock_id,
-        exam             = body.exam,
-        subject          = body.subject,
-        year             = "AI Generated",
-        duration_minutes = duration,
-        total_marks      = total_marks,
-        question_count   = actual_count,
-        json_file_path   = None,
-        is_ai_generated  = True,
-        ai_generation_params = {
-            "exam":               body.exam,
-            "subject":            body.subject,
-            "difficulty":         body.difficulty,
-            "question_count":     count,
-            "actual_count":       actual_count,
-            "use_proficiency":    body.use_proficiency,
-            "proficiency_score":  round(proficiency_score, 2),
-            "weak_topics":        weak_topics,
-            "difficulty_distribution": dist,
-            "generated_at":       datetime.now(timezone.utc).isoformat(),
-            "generated_for_user": current_user.id,
-        },
+    logger.info(
+        "AI mock job created: job_id=%s user_id=%s subject=%s questions=%s",
+        job.id, current_user.id, body.subject, body.num_questions,
     )
-    db.add(mock)
-    db.flush()
-
-    for i, q in enumerate(questions, start=1):
-        db.add(models.AIMockQuestion(
-            mock_id       = mock_id,
-            question_data = q,
-            position      = i,
-        ))
-
-    attempt = models.Attempt(user_id=current_user.id, mock_id=mock_id)
-    db.add(attempt)
-    db.commit()
-    db.refresh(attempt)
-
-    questions_out = [
-        schemas.QuestionOut(
-            id             = q["id"],
-            type           = q.get("type", "mcq"),
-            question       = q["question"],
-            passage        = q.get("passage"),
-            passage_title  = q.get("passage_title"),
-            options        = q["options"],
-            difficulty     = q["difficulty"],
-            topic          = q["topic"],
-            marks          = q.get("marks", 4),
-            negative_marking = q.get("negative_marking", 1),
-        )
-        for q in questions
-    ]
-
-    return schemas.StartAttemptResponse(
-        attempt_id       = attempt.id,
-        mock_id          = mock_id,
-        questions        = questions_out,
-        duration_minutes = duration,
-        total_marks      = total_marks,
+    return CreateMockTestResponse(
+        job_id=job.id,
+        status=job.status.value,
+        estimated_seconds=body.num_questions * 4,
+        credits_deducted=cost_microcredits // 100 if cost_microcredits else None,
     )
 
 
-@router.get("/history", response_model=schemas.AIMockHistoryResponse)
-def get_ai_mock_history(
-    current_user: models.User = Depends(get_current_user),
+# ── Job Status Polling ────────────────────────────────────────────────────────
+
+
+def _derive_progress_message(job) -> str:
+    """
+    BUG FIX: AIJob model has no progress_message column.
+    Derive a human-readable status string from job.status and job.progress_percent.
+    """
+    status = job.status.value if hasattr(job.status, "value") else str(job.status)
+    pct = job.progress_percent or 0
+    messages = {
+        "pending":   "Waiting to start…",
+        "queued":    "Queued for generation…",
+        "running":   f"Generating questions… ({pct}%)",
+        "completed": "Generation complete.",
+        "failed":    job.error_message or "Generation failed.",
+        "cancelled": "Cancelled.",
+    }
+    return messages.get(status, f"Status: {status}")
+
+
+@ai_jobs_router.get("/{job_id}", response_model=AIJobStatusResponse)
+def get_job_status(
+    job_id: str = Path(..., min_length=1, max_length=64),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    rows = (
-        db.query(models.MockTest, models.Attempt)
-        .join(
-            models.Attempt,
-            (models.Attempt.mock_id  == models.MockTest.id) &
-            (models.Attempt.user_id  == current_user.id),
-            isouter=True,
-        )
-        .filter(models.MockTest.is_ai_generated == True)
-        .order_by(models.MockTest.created_at.desc())
-        .all()
+    """Poll job status. Returns progress and result when complete."""
+    _validate_job_id(job_id)
+    service = AIJobService(db)
+
+    try:
+        job = service.get_job(job_id=job_id, user_id=current_user.id)
+    except AIJobNotFoundError:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    return AIJobStatusResponse(
+        job_id=job.id,
+        status=job.status.value,
+        created_at=job.created_at,
+        completed_at=job.completed_at,
+        error_message=job.error_message,
+        mock_test_id=job.result_mock_id,
+        progress_message=_derive_progress_message(job),
     )
 
-    items = []
-    for mock, attempt in rows:
-        params = mock.ai_generation_params or {}
-        if params.get("generated_for_user") != current_user.id:
-            continue
-        items.append(schemas.AIMockHistoryItem(
-            mock_id        = mock.id,
-            exam           = mock.exam,
-            subject        = mock.subject,
-            difficulty     = params.get("difficulty", "auto"),
-            question_count = mock.question_count,
-            attempt_id     = attempt.id if attempt else None,
-            score          = attempt.score if attempt else None,
-            total_marks    = mock.total_marks,
-            created_at     = mock.created_at,
-        ))
 
-    return schemas.AIMockHistoryResponse(ai_mocks=items)
+@ai_jobs_router.get("/{job_id}/result")
+def get_job_result(
+    job_id: str = Path(..., min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the full result of a completed AI job."""
+    _validate_job_id(job_id)
+    service = AIJobService(db)
+
+    try:
+        job = service.get_job(job_id=job_id, user_id=current_user.id)
+    except AIJobNotFoundError:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    if job.status.value in ("pending", "queued", "running"):
+        raise HTTPException(status_code=202, detail="Job is still processing.")
+
+    if job.status.value == "failed":
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "job_failed", "message": job.error_message or "Generation failed."},
+        )
+
+    if not job.result_mock_id:
+        raise HTTPException(status_code=404, detail="Result not available yet.")
+
+    try:
+        result = service.get_job_result(job_id=job_id, user_id=current_user.id)
+    except AIJobNotFoundError:
+        raise HTTPException(status_code=404, detail="Result not found.")
+    except Exception as exc:
+        logger.error(
+            "get_job_result FAILED: job_id=%s user_id=%s error=%s\n%s",
+            job_id, current_user.id, exc, traceback.format_exc(),
+        )
+        raise HTTPException(status_code=500, detail="Failed to retrieve job result.")
+
+    return result
+
+
+# ── Cancel Job ────────────────────────────────────────────────────────────────
+
+@ai_jobs_router.delete("/{job_id}", response_model=CancelJobResponse)
+def cancel_job(
+    job_id: str = Path(..., min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cancel a pending or processing AI job. Issues a credit refund."""
+    _validate_job_id(job_id)
+    service = AIJobService(db)
+
+    try:
+        result = service.cancel_job(job_id=job_id, user_id=current_user.id)
+        db.commit()
+    except AIJobNotFoundError:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        logger.error(
+            "cancel_job FAILED: job_id=%s user_id=%s error=%s\n%s",
+            job_id, current_user.id, exc, traceback.format_exc(),
+        )
+        raise HTTPException(status_code=500, detail="Failed to cancel job.")
+
+    return CancelJobResponse(
+        job_id=job_id,
+        cancelled=result.get("cancelled", True),
+        refunded_credits=result.get("refunded_credits"),
+    )
+
+
+# ── List Active Jobs ──────────────────────────────────────────────────────────
+
+@ai_jobs_router.get("/", response_model=list[AIJobStatusResponse])
+def list_my_jobs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all AI jobs for the current user (most recent first)."""
+    service = AIJobService(db)
+    jobs = service.list_jobs(user_id=current_user.id)
+    return [
+        AIJobStatusResponse(
+            job_id=j.id,
+            status=j.status.value,
+            created_at=j.created_at,
+            completed_at=j.completed_at,
+            error_message=j.error_message,
+            mock_test_id=j.result_mock_id,
+            progress_message=_derive_progress_message(j),
+        )
+        for j in jobs
+    ]

@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL Database ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: vyas_postgres
+    environment:
+      POSTGRES_USER: vyas_user
+      POSTGRES_PASSWORD: vyas_dev_password
+      POSTGRES_DB: vyas_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vyas_user -d vyas_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis Cache & Message Broker ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vyas_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vyas_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./question_bank:/app/question_bank:ro
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "True"
+
+      # Database
+      DATABASE_URL: postgresql://vyas_user:vyas_dev_password@postgres:5432/vyas_db
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # Auth
+      SECRET_KEY: vyas-insecure-dev-only-change-in-production
+      REFRESH_SECRET_KEY: vyas-refresh-insecure-dev-only
+      ACCESS_TOKEN_EXPIRE_MINUTES: 15
+
+      # CORS
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+
+      # Question Bank
+      QB_ROOT: /app/question_bank
+
+      # Groq API
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: llama-3.3-70b-versatile
+
+      # Razorpay
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Celery Worker ───────────────────────────────────────────────────────────
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vyas_celery_worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./question_bank:/app/question_bank:ro
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql://vyas_user:vyas_dev_password@postgres:5432/vyas_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      QB_ROOT: /app/question_bank
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: llama-3.3-70b-versatile
+
+    command: celery -A celery_app worker -Q ai_generation,default -c 2 --loglevel=info
+
+  # ── Celery Beat ────────────────────────────────────────────────────────────
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vyas_celery_beat
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql://vyas_user:vyas_dev_password@postgres:5432/vyas_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+    command: celery -A celery_app beat --loglevel=info
+
+volumes:
+  postgres_data:
+  redis_data:

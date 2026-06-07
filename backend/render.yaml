@@ -1,38 +1,95 @@
+# ════════════════════════════════════════════════════════════════════════════
+# VYAS v2.1.2 — Render Blueprint
+# ════════════════════════════════════════════════════════════════════════════
+#
+# ── DATABASE NOTE ────────────────────────────────────────────────────────────
+#
+# render.yaml uses Render's managed PostgreSQL via `fromDatabase: connectionString`.
+# This provides a DIRECT connection to PostgreSQL — NOT through pgBouncer.
+#
+# The local .env uses Supabase's pooler (pooler.supabase.com:5432) which IS
+# pgBouncer in transaction-pooling mode. This difference means:
+#   - Production (Render direct): SELECT FOR UPDATE NOWAIT works correctly
+#   - Local dev (Supabase pooler): SELECT FOR UPDATE NOWAIT raises OperationalError
+#
+# v2.1.2 replaces SELECT FOR UPDATE NOWAIT with PostgreSQL advisory locks
+# (pg_try_advisory_xact_lock) which work identically on both connection types.
+#
+# If you ever switch to Supabase's pooler in production, or Upstash PostgreSQL,
+# or any pgBouncer-backed URL, the advisory lock approach remains correct.
+# Use port 6543 (session pooling) instead of 5432 (transaction pooling) if
+# you need pgBouncer AND row-level locks.
+#
+# ── REDIS SETUP (READ BEFORE DEPLOYING) ─────────────────────────────────────
+#
+# Render's managed Redis requires a paid plan. The free tier only includes
+# PostgreSQL. This blueprint uses MANUALLY SET env vars for Redis.
+#
+# Recommended: Upstash Redis (free tier, no credit card required)
+#   1. Go to https://console.upstash.com
+#   2. Create a new Redis database (region: closest to your Render region)
+#   3. Copy the "Redis URL" (starts with rediss://)
+#   4. Set REDIS_URL, CELERY_BROKER_URL, and CELERY_RESULT_BACKEND in the
+#      Render dashboard for ALL THREE services (vyas-api, vyas-celery-worker,
+#      vyas-celery-beat).
+#
+# ════════════════════════════════════════════════════════════════════════════
+
 services:
+
+  # ── Web API ──────────────────────────────────────────────────────────────────
   - type: web
     name: vyas-api
     env: python
+    region: singapore
+    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port ${PORT}"
     envVars:
       - key: ENVIRONMENT
-        value: "production"
+        value: production
+
+      # ── Security ─────────────────────────────────────────────────────────
       - key: SECRET_KEY
         generateValue: true
+      - key: REFRESH_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "15"
+
+      # ── Database ──────────────────────────────────────────────────────────
       - key: DATABASE_URL
         fromDatabase:
           name: vyas-db
           property: connectionString
+
+      # ── Redis (set manually in Render dashboard after deploying) ──────────
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+
+      # ── CORS ─────────────────────────────────────────────────────────────
       - key: ALLOWED_ORIGINS
-        value: "https://mock-prep-three.vercel.app"
+        value: "https://vyasmock.online,https://www.vyasmock.online"
+
+      # ── Question Bank ─────────────────────────────────────────────────────
       - key: QB_ROOT
         value: "../question_bank"
 
-      # ── Groq / AI provider ─────────────────────────────────────────────────
+      # ── Groq / AI ─────────────────────────────────────────────────────────
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: "openai/gpt-oss-120b"
+        value: "llama-3.3-70b-versatile"
       - key: GROQ_BASE_URL
         value: "https://api.groq.com/openai/v1"
-
-      # ── v0.11: Your plan's TPM ceiling. Free tier = 8000.
-      #    Groq counts (input_tokens + max_tokens_param) against this.
-      #    Raise this if you upgrade to a paid plan.
       - key: GROQ_TPM_LIMIT
         value: "8000"
 
-      # ── AI tuning ──────────────────────────────────────────────────────────
+      # ── AI Tuning ─────────────────────────────────────────────────────────
       - key: AI_TIMEOUT
         value: "60.0"
       - key: AI_MAX_RETRIES
@@ -41,64 +98,200 @@ services:
         value: "0.5"
       - key: AI_TEMPERATURE_TUTOR
         value: "0.3"
-
-      # v0.11: AI_MAX_TOKENS_MOCK is now a HARD CAP / SAFETY NET only.
-      # The service computes a tighter dynamic value per batch automatically.
-      # Must be < GROQ_TPM_LIMIT - AI_PROMPT_TOKEN_ESTIMATE (< 7650).
-      # DO NOT raise this back to 8192 or 16384 — that was the root cause.
       - key: AI_MAX_TOKENS_MOCK
         value: "7500"
       - key: AI_MAX_TOKENS_TUTOR
         value: "2048"
-
-      # ── Batching & TPM rate-limit control (v0.11) ─────────────────────────
-      #
-      #  HOW TOKEN BUDGETING WORKS (v0.11):
-      #    Groq sees:  input_tokens + max_tokens_param  against TPM limit.
-      #    Per batch:  AI_PROMPT_TOKEN_ESTIMATE + (AI_MOCK_BATCH_SIZE
-      #                × AI_TOKENS_PER_QUESTION × AI_OUTPUT_TOKEN_OVERHEAD)
-      #              = 350 + (3 × 600 × 1.20)
-      #              = 350 + 2160
-      #              = 2510 tokens  →  well under 8000 ✓
-      #
-      #  INTER-BATCH DELAY FORMULA (if you ever tune these):
-      #    delay_s = (total_tokens_per_batch / GROQ_TPM_LIMIT) × 60 × 1.2
-      #            = (2510 / 8000) × 60 × 1.2  ≈  22.6 s
-
-      # Questions per single API call. At 3: total ≈ 2510 tokens < 8K TPM.
-      # Do NOT raise above 5 without recalculating the delay formula above.
       - key: AI_MOCK_BATCH_SIZE
         value: "4"
-
-      # Seconds to wait between batch calls — must respect TPM pacing.
-      # Minimum = (2510/8000)×60 = 18.8 s. 22 s = 17% safety buffer.
       - key: AI_BATCH_DELAY
         value: "42.0"
-
-      # Base backoff on HTTP 429. Actual = AI_RATE_LIMIT_BACKOFF × (attempt+1).
-      # attempt 1 → 30 s, attempt 2 → 60 s (full TPM window).
       - key: AI_RATE_LIMIT_BACKOFF
         value: "30.0"
-
-      # Fraction of TPM considered safe. Warning logged if exceeded.
       - key: AI_TOKEN_SAFETY_MARGIN
         value: "0.80"
-
-      # Estimated output tokens per generated question.
-      # JEE Math/Physics: 500-700. CUET/simpler subjects: 300-450.
       - key: AI_TOKENS_PER_QUESTION
         value: "1400"
-
-      # Multiplier on top of per-question estimate for the dynamic max_tokens.
-      # 1.20 = 20% headroom above the per-question estimate.
       - key: AI_OUTPUT_TOKEN_OVERHEAD
         value: "1.20"
-
-      # Conservative upper bound on prompt (input) tokens per batch.
-      # Used in pre-flight budget check. Actual is typically 250-300.
       - key: AI_PROMPT_TOKEN_ESTIMATE
         value: "262"
+
+      # ── Wallet / Credits ──────────────────────────────────────────────────
+      - key: SIGNUP_BONUS_MICROCREDITS
+        value: "500"
+      - key: MICROCREDITS_PER_CREDIT
+        value: "100"
+      - key: COST_PER_QUESTION_MICROCREDITS
+        value: "15"
+      - key: LOW_CREDIT_WARN_MICROCREDITS
+        value: "150"
+      # v2.1.2 FIX: This key was MISSING from render.yaml — config.py defaulted
+      # to 50, which is correct, but the absence created confusion during debugging
+      # (config changes wouldn't deploy without it being explicit).
+      - key: COST_TUTOR_EXPLAIN_MICROCREDITS
+        value: "50"
+
+      # ── Razorpay ──────────────────────────────────────────────────────────
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAY_CURRENCY
+        value: "INR"
+
+      # ── Email ─────────────────────────────────────────────────────────────
+      - key: BREVO_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        value: "https://vyasmock.online"
+      - key: OWNER_EMAIL
+        sync: false
+
+      # ── Sentry (optional) ──────────────────────────────────────────────────
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.1"
+
+      # ── Logging ───────────────────────────────────────────────────────────
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: LOG_FORMAT
+        value: "json"
+
+  # ── Celery Worker ────────────────────────────────────────────────────────────
+  - type: worker
+    name: vyas-celery-worker
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A celery_app worker -Q ai_generation,default -c 2 --loglevel=info"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vyas-db
+          property: connectionString
+      - key: BREVO_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: QB_ROOT
+        value: "../question_bank"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: "llama-3.3-70b-versatile"
+      - key: GROQ_BASE_URL
+        value: "https://api.groq.com/openai/v1"
+      - key: GROQ_TPM_LIMIT
+        value: "8000"
+      - key: AI_TIMEOUT
+        value: "60.0"
+      - key: AI_MAX_RETRIES
+        value: "3"
+      - key: AI_TEMPERATURE_MOCK
+        value: "0.5"
+      - key: AI_MAX_TOKENS_MOCK
+        value: "7500"
+      - key: AI_MOCK_BATCH_SIZE
+        value: "4"
+      - key: AI_BATCH_DELAY
+        value: "42.0"
+      - key: AI_RATE_LIMIT_BACKOFF
+        value: "30.0"
+      - key: AI_TOKEN_SAFETY_MARGIN
+        value: "0.80"
+      - key: AI_TOKENS_PER_QUESTION
+        value: "1400"
+      - key: AI_OUTPUT_TOKEN_OVERHEAD
+        value: "1.20"
+      - key: AI_PROMPT_TOKEN_ESTIMATE
+        value: "262"
+      - key: SIGNUP_BONUS_MICROCREDITS
+        value: "500"
+      - key: MICROCREDITS_PER_CREDIT
+        value: "100"
+      - key: COST_PER_QUESTION_MICROCREDITS
+        value: "15"
+      - key: LOW_CREDIT_WARN_MICROCREDITS
+        value: "150"
+      - key: COST_TUTOR_EXPLAIN_MICROCREDITS
+        value: "50"
+
+  # ── Celery Beat (Periodic Tasks Scheduler) ───────────────────────────────────
+  - type: worker
+    name: vyas-celery-beat
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vyas-db
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
 
 databases:
   - name: vyas-db
     plan: free
+    region: singapore
+
+# ── DEPLOYMENT CHECKLIST ─────────────────────────────────────────────────────
+#
+# Before hitting "Apply Blueprint":
+#
+#  1. Create Upstash Redis (free): https://console.upstash.com
+#
+#  2. After blueprint deploys, set these manually in Render dashboard
+#     for ALL THREE services:
+#       REDIS_URL             = rediss://...  (from Upstash)
+#       CELERY_BROKER_URL     = rediss://...  (same value)
+#       CELERY_RESULT_BACKEND = rediss://...  (same value)
+#
+#  3. Set secret env vars (Render dashboard → vyas-api → Environment):
+#       GROQ_API_KEY
+#       RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+#       BREVO_API_KEY, FROM_EMAIL
+#       SENTRY_DSN (optional)
+#
+#  4. Run migrations (Render dashboard → vyas-api → Shell):
+#       cd backend && alembic upgrade head
+#
+#  5. Verify: https://your-api.onrender.com/health → {"status":"healthy","redis":"ok"}
+#
+#  6. Verify logging works: in the vyas-api log viewer, you should see
+#       "Logging configured: level=INFO production=True ..."
+#     If you do NOT see this line, the stdout handler is not attached.
+#     Check that LOG_LEVEL is set and the app is starting cleanly.
+# ─────────────────────────────────────────────────────────────────────────────

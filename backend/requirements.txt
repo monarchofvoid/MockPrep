@@ -1,11 +1,58 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-pydantic[email]
-python-multipart
-python-jose[cryptography]
-passlib
+# VYAS v2.2.0 — Pinned Dependencies
+# v2.2.0: Removed Celery/Kombu/RedBeat; added APScheduler[redis]
+# Generated: 2026-06
+# Use: pip install -r requirements.txt --break-system-packages
+
+# ── Core Web Framework ────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.30
+psycopg[binary]
+alembic==1.13.1
+
+# ── Pydantic & Validation ─────────────────────────────────────────────────────
+pydantic==2.7.1
+pydantic-settings==2.2.1
+pydantic[email]==2.7.1
+email-validator==2.1.1
+
+# ── Auth & Security ───────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
 bcrypt==4.0.1
-python-dotenv
-psycopg2-binary
-httpx
+authlib==1.3.0         # Google OAuth
+
+# ── Async HTTP ────────────────────────────────────────────────────────────────
+httpx==0.27.0
+anyio==4.3.0
+
+# ── Config ────────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+# Used for: application cache, rate limiting, job status, APScheduler job store
+redis==5.0.4
+
+# ── Scheduler (replaces Celery + Kombu + RedBeat) ────────────────────────────
+# APScheduler 3.10.4 with Redis job store support
+# apscheduler[redis] installs redis as a dependency — pinned explicitly above
+apscheduler==3.10.4
+
+# ── Payments ─────────────────────────────────────────────────────────────────
+razorpay==1.4.2
+
+# ── Email ─────────────────────────────────────────────────────────────────────
+sib-api-v3-sdk==7.6.0  # Brevo (formerly SendInBlue)
+
+# ── Monitoring ────────────────────────────────────────────────────────────────
+sentry-sdk[fastapi]==2.2.0
+structlog==24.1.0
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==8.2.0
+pytest-asyncio==0.23.6
+httpx==0.27.0
+factory-boy==3.3.0

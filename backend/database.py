@@ -1,49 +1,49 @@
 """
 VYAS v2.0 — Database Configuration
 =====================================
-v2.0 changes:
-  - Connection pooling for PostgreSQL (pool_size, max_overflow, pool_timeout)
-  - SQLite stays with connect_args={"check_same_thread": False}
-  - Uses AppConfig for all settings (no raw os.getenv)
-  - Proper pool_pre_ping to detect stale connections
+Connection pooling configured for production PostgreSQL.
+SQLite still works for local dev but is explicitly discouraged.
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from config import AppConfig
+from core.config import get_settings
 
-DATABASE_URL = AppConfig.DATABASE_URL
+settings = get_settings()
+DATABASE_URL = settings.DATABASE_URL
 
-# Build engine with appropriate pool settings
 _is_sqlite = DATABASE_URL.startswith("sqlite")
 
 if _is_sqlite:
-    # SQLite: no connection pooling, single-thread check disabled for FastAPI
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},
     )
 else:
-    # PostgreSQL / MySQL: full connection pooling
+    connect_args = {}
+    if DATABASE_URL.startswith("postgresql+psycopg"):
+        connect_args["prepare_threshold"] = None
+
     engine = create_engine(
         DATABASE_URL,
-        pool_size=AppConfig.DB_POOL_SIZE,
-        max_overflow=AppConfig.DB_MAX_OVERFLOW,
-        pool_timeout=AppConfig.DB_POOL_TIMEOUT,
-        pool_pre_ping=True,   # detect stale connections before use
-        echo=False,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_timeout=settings.DB_POOL_TIMEOUT,
+        pool_recycle=settings.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+        echo=settings.DEBUG,
+        connect_args=connect_args,
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 
 def get_db():
-    """FastAPI dependency: yields a DB session and ensures it is closed."""
+    """FastAPI dependency: yields a DB session and ensures it is always closed."""
     db = SessionLocal()
     try:
         yield db

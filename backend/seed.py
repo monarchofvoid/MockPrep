@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from database import engine, SessionLocal
 import models
 
-QB_ROOT = Path(__file__).parent.parent / "question_bank"
+QB_ROOT = Path(__file__).parent / "question_bank"
 
 # Fields that are compared and updated when JSON changes
 TRACKED_FIELDS = [

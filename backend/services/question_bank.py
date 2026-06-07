@@ -27,8 +27,7 @@ else:
     # __file__ = backend/services/question_bank.py
     # .parent   = backend/services/
     # .parent   = backend/
-    # .parent   = project root
-    QB_ROOT = Path(__file__).parent.parent.parent / "question_bank"
+    QB_ROOT = Path(__file__).parent.parent / "question_bank"
 
 logger.info("QB_ROOT resolved to: %s (exists=%s)", QB_ROOT, QB_ROOT.exists())
 
