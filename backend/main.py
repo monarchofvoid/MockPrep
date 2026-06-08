@@ -257,7 +257,10 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
 
     # ── Request logging ───────────────────────────────────────────────────────
-    _SKIP = {"/health", "/favicon.ico"}
+    # "/" is included so Render's platform HEAD / health pings (127.0.0.1)
+    # and external GET / bot scans do not fill logs with WARNING noise.
+    # They are handled by the root endpoint below and logged at INFO via _SKIP suppression.
+    _SKIP = {"/health", "/favicon.ico", "/"}
 
     class RequestLoggingMiddleware:
         def __init__(self, app):
@@ -461,6 +464,24 @@ def create_app() -> FastAPI:
         ok = ping_redis()
         return {"status": "healthy" if ok else "degraded",
                 "version": settings.APP_VERSION, "redis": "ok" if ok else "unavailable"}
+
+    @app.get("/", tags=["System"], include_in_schema=False)
+    async def root():
+        """
+        Root endpoint — responds to GET and HEAD (FastAPI auto-generates HEAD from GET).
+
+        Why this exists:
+          - Render's platform pings HEAD / every ~30 s from 127.0.0.1 to confirm
+            the dyno is alive. Without this route, every ping logs a WARNING 404.
+          - External scanners/bots also probe GET /. Same story.
+          - With this route, both requests return 200 and are silently suppressed
+            by the _SKIP set in RequestLoggingMiddleware — zero log noise.
+        """
+        return {
+            "service": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "status": "ok",
+        }
 
     return app
 

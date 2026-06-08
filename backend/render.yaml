@@ -1,43 +1,47 @@
 # ════════════════════════════════════════════════════════════════════════════
-# VYAS v2.1.2 — Render Blueprint
+# VYAS v2.2.0 — Render Blueprint
 # ════════════════════════════════════════════════════════════════════════════
+#
+# v2.2.0 changes vs v2.1.x:
+#   - Removed: vyas-celery-worker service (Celery → APScheduler migration)
+#   - Removed: vyas-celery-beat service  (scheduler now runs inside vyas-api)
+#   - Removed: CELERY_BROKER_URL / CELERY_RESULT_BACKEND env vars
+#   - Added:   SCHEDULER_ENABLED env var
+#
+# Architecture is now a single web service:
+#   vyas-api  →  FastAPI + APScheduler (runs scheduled jobs in-process)
 #
 # ── DATABASE NOTE ────────────────────────────────────────────────────────────
 #
 # render.yaml uses Render's managed PostgreSQL via `fromDatabase: connectionString`.
-# This provides a DIRECT connection to PostgreSQL — NOT through pgBouncer.
-#
-# The local .env uses Supabase's pooler (pooler.supabase.com:5432) which IS
-# pgBouncer in transaction-pooling mode. This difference means:
-#   - Production (Render direct): SELECT FOR UPDATE NOWAIT works correctly
-#   - Local dev (Supabase pooler): SELECT FOR UPDATE NOWAIT raises OperationalError
-#
-# v2.1.2 replaces SELECT FOR UPDATE NOWAIT with PostgreSQL advisory locks
-# (pg_try_advisory_xact_lock) which work identically on both connection types.
-#
-# If you ever switch to Supabase's pooler in production, or Upstash PostgreSQL,
-# or any pgBouncer-backed URL, the advisory lock approach remains correct.
-# Use port 6543 (session pooling) instead of 5432 (transaction pooling) if
-# you need pgBouncer AND row-level locks.
+# This provides a DIRECT connection — NOT through pgBouncer.
 #
 # ── REDIS SETUP (READ BEFORE DEPLOYING) ─────────────────────────────────────
 #
-# Render's managed Redis requires a paid plan. The free tier only includes
-# PostgreSQL. This blueprint uses MANUALLY SET env vars for Redis.
-#
-# Recommended: Upstash Redis (free tier, no credit card required)
+# Render's managed Redis requires a paid plan. This blueprint uses Upstash Redis.
 #   1. Go to https://console.upstash.com
-#   2. Create a new Redis database (region: closest to your Render region)
+#   2. Create a Redis database (region: Singapore — matches vyas-api region)
 #   3. Copy the "Redis URL" (starts with rediss://)
-#   4. Set REDIS_URL, CELERY_BROKER_URL, and CELERY_RESULT_BACKEND in the
-#      Render dashboard for ALL THREE services (vyas-api, vyas-celery-worker,
-#      vyas-celery-beat).
+#   4. Set REDIS_URL in the Render dashboard for vyas-api.
+#
+# ── CORS NOTE ────────────────────────────────────────────────────────────────
+#
+# ALLOWED_ORIGINS controls which frontend origins can call the API.
+# Current value covers the production custom domain only.
+#
+# If you see OPTIONS 400 logs (CORS preflight rejected), it means a request
+# is arriving from an origin NOT in this list. Common causes:
+#   - Frontend deployed at a Vercel/Render preview URL (not the custom domain)
+#   - Local dev frontend hitting the production backend
+#
+# Fix: add the missing origin (comma-separated) in the Render dashboard:
+#   Environment → ALLOWED_ORIGINS → append ,https://your-preview-url.vercel.app
 #
 # ════════════════════════════════════════════════════════════════════════════
 
 services:
 
-  # ── Web API ──────────────────────────────────────────────────────────────────
+  # ── Web API (single service — FastAPI + APScheduler) ─────────────────────
   - type: web
     name: vyas-api
     env: python
@@ -49,6 +53,12 @@ services:
       - key: ENVIRONMENT
         value: production
 
+      # ── Scheduler ────────────────────────────────────────────────────────
+      # APScheduler runs inside the web process (no separate worker needed).
+      # Set to false if you ever need to disable background jobs temporarily.
+      - key: SCHEDULER_ENABLED
+        value: "true"
+
       # ── Security ─────────────────────────────────────────────────────────
       - key: SECRET_KEY
         generateValue: true
@@ -56,6 +66,10 @@ services:
         generateValue: true
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "15"
+      - key: REFRESH_TOKEN_COOKIE_SECURE
+        value: "true"
+      - key: REFRESH_TOKEN_COOKIE_SAMESITE
+        value: "none"
 
       # ── Database ──────────────────────────────────────────────────────────
       - key: DATABASE_URL
@@ -63,15 +77,15 @@ services:
           name: vyas-db
           property: connectionString
 
-      # ── Redis (set manually in Render dashboard after deploying) ──────────
+      # ── Redis ─────────────────────────────────────────────────────────────
+      # Set manually in Render dashboard after deploying.
+      # Value: rediss://... from Upstash console.
       - key: REDIS_URL
-        sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
-      - key: CELERY_RESULT_BACKEND
         sync: false
 
       # ── CORS ─────────────────────────────────────────────────────────────
+      # If frontend is also deployed at a Render/Vercel preview URL,
+      # add it here via the dashboard (not this file) to avoid committing URLs.
       - key: ALLOWED_ORIGINS
         value: "https://vyasmock.online,https://www.vyasmock.online"
 
@@ -126,9 +140,6 @@ services:
         value: "15"
       - key: LOW_CREDIT_WARN_MICROCREDITS
         value: "150"
-      # v2.1.2 FIX: This key was MISSING from render.yaml — config.py defaulted
-      # to 50, which is correct, but the absence created confusion during debugging
-      # (config changes wouldn't deploy without it being explicit).
       - key: COST_TUTOR_EXPLAIN_MICROCREDITS
         value: "50"
 
@@ -152,7 +163,7 @@ services:
       - key: OWNER_EMAIL
         sync: false
 
-      # ── Sentry (optional) ──────────────────────────────────────────────────
+      # ── Sentry (optional) ─────────────────────────────────────────────────
       - key: SENTRY_DSN
         sync: false
       - key: SENTRY_TRACES_SAMPLE_RATE
@@ -163,104 +174,15 @@ services:
         value: "INFO"
       - key: LOG_FORMAT
         value: "json"
+      # LOG_FILE intentionally omitted — stdout only on Render (no persistent disk)
 
-  # ── Celery Worker ────────────────────────────────────────────────────────────
-  - type: worker
-    name: vyas-celery-worker
-    env: python
-    region: singapore
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "celery -A celery_app worker -Q ai_generation,default -c 2 --loglevel=info"
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: vyas-db
-          property: connectionString
-      - key: BREVO_API_KEY
+      # ── Google OAuth ──────────────────────────────────────────────────────
+      - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: FROM_EMAIL
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: OWNER_EMAIL
-        sync: false
-      - key: RAZORPAY_KEY_ID
-        sync: false
-      - key: RAZORPAY_KEY_SECRET
-        sync: false
-      - key: RAZORPAY_WEBHOOK_SECRET
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
-      - key: CELERY_RESULT_BACKEND
-        sync: false
-      - key: QB_ROOT
-        value: "../question_bank"
-      - key: GROQ_API_KEY
-        sync: false
-      - key: GROQ_MODEL
-        value: "llama-3.3-70b-versatile"
-      - key: GROQ_BASE_URL
-        value: "https://api.groq.com/openai/v1"
-      - key: GROQ_TPM_LIMIT
-        value: "8000"
-      - key: AI_TIMEOUT
-        value: "60.0"
-      - key: AI_MAX_RETRIES
-        value: "3"
-      - key: AI_TEMPERATURE_MOCK
-        value: "0.5"
-      - key: AI_MAX_TOKENS_MOCK
-        value: "7500"
-      - key: AI_MOCK_BATCH_SIZE
-        value: "4"
-      - key: AI_BATCH_DELAY
-        value: "42.0"
-      - key: AI_RATE_LIMIT_BACKOFF
-        value: "30.0"
-      - key: AI_TOKEN_SAFETY_MARGIN
-        value: "0.80"
-      - key: AI_TOKENS_PER_QUESTION
-        value: "1400"
-      - key: AI_OUTPUT_TOKEN_OVERHEAD
-        value: "1.20"
-      - key: AI_PROMPT_TOKEN_ESTIMATE
-        value: "262"
-      - key: SIGNUP_BONUS_MICROCREDITS
-        value: "500"
-      - key: MICROCREDITS_PER_CREDIT
-        value: "100"
-      - key: COST_PER_QUESTION_MICROCREDITS
-        value: "15"
-      - key: LOW_CREDIT_WARN_MICROCREDITS
-        value: "150"
-      - key: COST_TUTOR_EXPLAIN_MICROCREDITS
-        value: "50"
-
-  # ── Celery Beat (Periodic Tasks Scheduler) ───────────────────────────────────
-  - type: worker
-    name: vyas-celery-beat
-    env: python
-    region: singapore
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "celery -A celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule"
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: vyas-db
-          property: connectionString
-      - key: REDIS_URL
-        sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
-      - key: CELERY_RESULT_BACKEND
-        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: "https://vyasmock.online/auth/oauth/google/callback"
 
 databases:
   - name: vyas-db
@@ -272,26 +194,30 @@ databases:
 # Before hitting "Apply Blueprint":
 #
 #  1. Create Upstash Redis (free): https://console.upstash.com
+#     Region: ap-southeast-1 (Singapore — same as vyas-api)
 #
 #  2. After blueprint deploys, set these manually in Render dashboard
-#     for ALL THREE services:
+#     (vyas-api → Environment):
 #       REDIS_URL             = rediss://...  (from Upstash)
-#       CELERY_BROKER_URL     = rediss://...  (same value)
-#       CELERY_RESULT_BACKEND = rediss://...  (same value)
+#       GROQ_API_KEY          = gsk_...
+#       RAZORPAY_KEY_ID       = rzp_live_...
+#       RAZORPAY_KEY_SECRET   = ...
+#       RAZORPAY_WEBHOOK_SECRET = ...
+#       BREVO_API_KEY         = ...
+#       FROM_EMAIL            = support@vyasmock.online
+#       OWNER_EMAIL           = support@vyasmock.online
+#       GOOGLE_CLIENT_ID      = ...
+#       GOOGLE_CLIENT_SECRET  = ...
 #
-#  3. Set secret env vars (Render dashboard → vyas-api → Environment):
-#       GROQ_API_KEY
-#       RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
-#       BREVO_API_KEY, FROM_EMAIL
-#       SENTRY_DSN (optional)
+#  3. Run migrations (Render dashboard → vyas-api → Shell):
+#       alembic upgrade head
 #
-#  4. Run migrations (Render dashboard → vyas-api → Shell):
-#       cd backend && alembic upgrade head
+#  4. Verify: https://vyas-api.onrender.com/health
+#     Expected: {"status":"healthy","redis":"ok","version":"2.2.0"}
 #
-#  5. Verify: https://your-api.onrender.com/health → {"status":"healthy","redis":"ok"}
+#  5. Verify: https://vyas-api.onrender.com/
+#     Expected: {"service":"VYAS","version":"2.2.0","status":"ok"}
 #
-#  6. Verify logging works: in the vyas-api log viewer, you should see
-#       "Logging configured: level=INFO production=True ..."
-#     If you do NOT see this line, the stdout handler is not attached.
-#     Check that LOG_LEVEL is set and the app is starting cleanly.
+#  6. If you see OPTIONS 400 logs, check ALLOWED_ORIGINS in the dashboard
+#     and add the missing frontend origin. See CORS NOTE above.
 # ─────────────────────────────────────────────────────────────────────────────
