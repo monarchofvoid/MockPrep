@@ -776,8 +776,8 @@ export async function submitAttempt(
   return request<Attempt>(`/attempts/${attemptId}/submit`, {
     method: 'POST',
     body: JSON.stringify({
-      raw_answers: answers,
-      time_spent_seconds: timeSpentSeconds,
+      answers: answers,
+      time_taken_seconds: timeSpentSeconds,
     }),
   });
 }
