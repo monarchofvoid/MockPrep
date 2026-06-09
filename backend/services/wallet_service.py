@@ -267,6 +267,36 @@ class WalletService:
             "Credits deducted: user_id=%s amount=%s new_balance=%s key=%s",
             user_id, amount_microcredits, new_balance, idempotency_key,
         )
+
+        # ── Low-credit email alert ────────────────────────────────────────────
+        # Fires only when the balance crosses the threshold on THIS deduction
+        # (was above threshold before, now at or below it) so the email is sent
+        # exactly once — not on every deduction once the user is already low.
+        try:
+            from core.config import get_settings
+            settings = get_settings()
+            threshold = settings.LOW_CREDIT_WARN_MICROCREDITS
+            old_balance = new_balance + amount_microcredits
+            if old_balance > threshold >= new_balance:
+                import models as _models
+                user = self.db.query(_models.User).filter_by(id=user_id).first()
+                if user:
+                    from services.email import send_low_credit_email
+                    import threading
+                    balance_credits = round(new_balance / 100, 2)
+                    threading.Thread(
+                        target=send_low_credit_email,
+                        args=(user.email, user.name or "there", balance_credits),
+                        daemon=True,
+                    ).start()
+                    logger.info(
+                        "Low-credit email queued: user_id=%s balance_credits=%s",
+                        user_id, balance_credits,
+                    )
+        except Exception as exc:
+            # Never let email failure block or roll back a credit deduction
+            logger.warning("Low-credit email trigger failed (non-fatal): %s", exc)
+
         return entry
 
     # ── Refund Credits ────────────────────────────────────────────────────────

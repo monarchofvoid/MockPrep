@@ -77,11 +77,14 @@ class OTPService:
         existing = self.db.query(PendingOTP).filter_by(email=email.lower()).first()
 
         if is_resend and existing:
-            # Enforce cooldown between resends
-            if existing.last_sent_at:
-                last_sent = existing.last_sent_at
-                if last_sent.tzinfo is None:
-                    last_sent = last_sent.replace(tzinfo=timezone.utc)
+            # Enforce cooldown between resends.
+            # The model has no last_sent_at column — derive last-sent time from
+            # expires_at: last_sent_at ≈ expires_at - OTP_EXPIRY_MINUTES.
+            if existing.expires_at:
+                expires = existing.expires_at
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                last_sent = expires - timedelta(minutes=OTP_EXPIRY_MINUTES)
                 seconds_since_last = (now - last_sent).total_seconds()
                 if seconds_since_last < OTP_RESEND_COOLDOWN:
                     wait = int(OTP_RESEND_COOLDOWN - seconds_since_last)
@@ -103,10 +106,9 @@ class OTPService:
 
         if existing:
             # Update in-place (covers both initial replaces and resends)
-            existing.otp_hash      = otp_hash
-            existing.expires_at    = expires_at
-            existing.last_sent_at  = now
-            existing.name          = name
+            existing.otp_hash        = otp_hash
+            existing.expires_at      = expires_at
+            existing.name            = name
             existing.hashed_password = hashed_pwd
             if is_resend:
                 existing.resend_count += 1
@@ -117,7 +119,6 @@ class OTPService:
                 hashed_password=hashed_pwd,
                 otp_hash=otp_hash,
                 expires_at=expires_at,
-                last_sent_at=now,
                 resend_count=0,
             )
             self.db.add(pending)
