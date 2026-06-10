@@ -269,9 +269,9 @@ class WalletService:
         )
 
         # ── Low-credit email alert ────────────────────────────────────────────
-        # Fires only when the balance crosses the threshold on THIS deduction
-        # (was above threshold before, now at or below it) so the email is sent
-        # exactly once — not on every deduction once the user is already low.
+        # Fires only when balance crosses the threshold on THIS deduction
+        # (was above threshold before, now at or below it) — sends exactly
+        # once, not on every deduction once the user is already low.
         try:
             from core.config import get_settings
             settings = get_settings()
@@ -334,7 +334,17 @@ class WalletService:
 
         # Refund amount is the absolute value of the deduction
         refund_amount = abs(original.amount_microcredits)
-        user_id       = original.user_id
+
+        # CreditLedger has no user_id column — it links to users only through
+        # wallet_id -> wallets.user_id. Derive user_id via the Wallet lookup.
+        wallet = self.db.query(Wallet).filter_by(id=original.wallet_id).first()
+        if not wallet:
+            logger.error(
+                "Refund: wallet_id=%s not found for ledger_id=%s -- cannot refund",
+                original.wallet_id, original_ledger_entry_id,
+            )
+            return None
+        user_id = wallet.user_id
 
         try:
             return self.grant_credits(
